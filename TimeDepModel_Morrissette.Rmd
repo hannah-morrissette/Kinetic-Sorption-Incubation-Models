@@ -1,0 +1,550 @@
+---
+title: "Time Dependent Simple Model"
+author: "Hannah Morrissette"
+date: "26 Dec 2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Logistic Setup
+
+## Package dependencies
+
+```{r}
+library(deSolve)
+library("FME")
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(tidyverse)
+library(modelr)
+```
+
+# Model structure
+
+## Parameter names & Equations 
+
+### Change in mass over time (mg/hr)
+- dDOC = change in DOC mass in solution over time
+- dCs  = change in sorbed organic carbon mass over time
+
+### Rate parameters (hr-1)
+- kdes = desorption rate
+- kads = adsorption rate
+
+### State Variables (mg)
+- Cs = mass of organic carbon sorbed on soils
+- DOC = mass of DOC free in solution
+
+### First order ODEs 
+- dDOC <- kdes * Cs - kads * DOC #del mass of DOC in solution
+- dCs <- kads * DOC - kdes * Cs #del mass of DOC on sediment
+
+### ID names
+- JB__ or TA__ = kinetic experiments
+  - JB = Jug Bay
+  - TA = Taskinas
+- W___ or P___ = spatial kinetic experiments
+  - W = shallow, P = deep
+  - C = creek edge, I = intermediate site, M = high marsh
+- __HF, __HS, __LF, __LS = scenario
+  - HF = High initial [DOC], Fresh
+  - HS = High initial [DOC], Saline
+  - LF = Low initial [DOC], Fresh
+  - LS = Low initial [DOC], Saline
+- 1-7 = time points
+  - 1 = 0 min, 2 = 10 min, 3 = 15 min, 4 = 1 hr, 5 = 6 hr, 6 = 12 hr, 7 = 24 hr
+
+# Data organization
+
+## Time
+- Time will always stay the same 7 values: 0, 0.17, 0.25, 1, 6, 12, 24
+- hours
+- added +0.05 to each time point so that the time0 would represent the 3minutes 
+
+## Observed values
+- Only have measured observed values for DOC 
+- These will change with every scenario -- need to input these data
+
+## Initial Values for model
+- Two y0 values for DOC, Cs
+- These will change with every scenario -- need to input these data
+- Rate parameter k's might change but the first guess could be the same for each
+
+### Using dplyr to manipulate the data
+- Try to use .csv as default file formats
+- Try not to have spaces or unconventional characters in title names
+- Remember that initial values must be in  the same order as the ODE order (Use %>% select())
+- data.frame <- as.numeric changes data to vector
+- Use str() to compare the data types 
+
+## Read in time, y0, and obs values
+```{r}
+time_pts <- c(0.05, 0.22, 0.30, 1.05, 6.05, 12.05, 24.05) 
+#adding in inoculation to incubation start time (3 min = 0.05 hours)
+
+y0df <- read.csv("TDep_y0_input.csv")
+
+#adding y0 values as t0 values in observed 
+zero <- rep(0, 32) #creates a vector of zeros 32 spaces long
+t0dat <- y0df[,1:2] #takes columns 1-2 of y0df and makes new dataframe
+t0dat["time"] <- zero #adds the vector of zeros to a new column named "time"
+t0dat <- t0dat[ , c(1, 3, 2)] #puts the time column first
+#this is all to match up to dat2 in lapply code
+
+obs <- read.csv("TDep_Obs_input.csv")
+
+obs2 <- obs %>% separate(X, c("exp", "time"), 4)
+```
+
+
+```{r}
+#run if fit has already been run
+rates <- read.csv("TDep_Rates_input.csv")
+rates <- rates[, c(4,1:3)]
+
+#If first time running model, bring in rates from linear model and adjust
+
+sites <- data.frame(rates[,1])
+```
+
+
+```{r}
+#run if stats have already been run
+statistics <- read.csv("TDep_Stats_input.csv")
+```
+
+## Use dplyr and tidyr to select the observational data for the experiment
+### Examples
+
+- JHF <- y0df %>% filter(X == "JBHF")
+- obs2 <- obs %>% separate(X, c("exp", "time"), 4) -- breaks one column into two at the fourth character
+- JHF <- obs2 %>% filter(exp == "JBHF")
+- obs3 <- obs2 %>% mutate(time = c(0,0.17,0.25,1,6,12,24)) -- adds time to data frame if it wasn't already there
+
+
+# Cost Function 
+```{r}
+
+cost <- function(p, dat, times_out, model, initial) {
+  out <- ode(initial, times_out, model, p, method = "bdf")
+ #  out <- ode(initial, times_out, model, p)
+  modCost(out, dat, weight = "none")} # try weight = "std" or "mean"
+
+```
+
+# ODE Function
+### lapply to run time-dependent ode's 
+### plots model output onto observed value
+```{r}
+#lapply for new times length and ode line
+
+#run all rows to get full ode output
+#run 4 rows at a time to do the graphs in the next section
+
+#comp <- lapply(1:nrow(y0df), function(x){    #do all rows
+comp <- lapply(c(29:32), function(x){          #try some
+#site = "JBLS"                                #try just one site 
+site <- as.character(y0df$X[x])  
+print(site)
+
+dat <- obs2 %>% filter(exp == site) %>% mutate(time = time_pts)
+
+times <- seq(0, 24.05, by = 0.01)
+
+y0 <- y0df %>% filter(X == site) # filter out from y0 master
+  y0 <- data.matrix(y0) #makes the data frame a numeric
+  y0 <- y0[,-1] #get rid of X label column
+
+dat2 <- dat %>% select(time, DOC) #take out the specifically named columns
+  t0 <- t0dat %>% filter(X == site)
+  t02 <- t0 %>% select(time, DOC)
+  dat3 <- rbind(t02,dat2) #adds the y0 values from that scenario as the true t0 values
+  
+parms <- rates %>% filter(as.character(X) == site)
+  parms <- parms[ ,-1]
+  parms2 <- unlist(parms)
+  
+#parms2 <- c(kdes_fast = 50, kdes_slow = 2.815, kads = 0.165)
+#parms2 <- c(kdes_fast = 1.927, kdes_mid = 6, kdes_slow = 3.153, kads = 4.423)
+
+
+Ode.fn <- function(times, y0, parms2){
+  
+  with(as.list(c(parms2, y0)), {
+    
+  if (times <= 0.17) {
+    kdes <- kdes_fast
+  } else if (times > 0.17) {
+    kdes <- kdes_slow
+  }
+    
+  #if (times <= 0.05) {
+  #  kdes <- kdes_fast
+  #} else if (times > 0.05 && times <= 0.22) {
+  #  kdes <- kdes_mid
+  #} else if (times > 0.22) {
+  #  kdes <- kdes_slow
+  #}
+
+  dDOC <- kdes*Cs - kads*DOC #del mass of DOC in solution
+  dCs <- kads*DOC - kdes*Cs #del mass of OC on sediment
+
+  list(c(dDOC, dCs))
+  })}
+
+out1 <- ode(y = y0, times = times, func = Ode.fn, parms = parms2)
+#out1 <- ode(y0, times, twocomp, parms)
+out1_df <- data.frame(out1)
+
+statlabel <- statistics %>% filter(X == site)
+RMSE <- round(statlabel[,2], digits = 3)
+MEF <- round(statlabel[,4], digits = 3)
+ylabel <- mean(dat3$DOC)
+
+st <- paste0("RMSE = ",RMSE)
+#\n breaks it into a different line -> "\n MEF = "
+
+#st <- c(expression("test \n"), expression("r"^"2"))
+#center aligns with things that need expressions
+
+if (site == "JBHF" || site == "TAHF" || site == "WCHF" || site == "WIHF" || site == "WMHF" || site == "PCHF" || site == "PIHF" || site == "PMHF") {
+  ylabel <- mean(dat3$DOC) + 0.15
+  
+  comp1 <- ggplot(out1_df) +
+  geom_line(aes(time, DOC), color = "orchid2", linetype = "dashed", size = 1.2) +
+  geom_point(data = dat3, aes(time, DOC),shape = 21, color = "black", fill = "orchid2") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = site, tag = "(a)") +
+  annotate("text",x = 12, y = ylabel, label = st)
+#annotate is better than geom_text - puts as many texts on as points
+  assign("comp1",comp1,envir = .GlobalEnv)
+  
+} else if (site == "JBHS" || site == "TAHS" || site == "WCHS" || site == "WIHS" || site == "WMHS" || site == "PCHS" || site == "PIHS" || site == "PMHS") {
+  ylabel <- mean(dat3$DOC)
+  
+  comp2 <- ggplot(out1_df) +
+  geom_line(aes(time, DOC), color = "orchid2", linetype = "dashed", size = 1.2) +
+  geom_point(data = dat3, aes(time, DOC), shape = 21, color = "black", fill = "orchid2") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = site, tag = "(b)") +
+  annotate("text",x = 12, y = ylabel, label = st)
+#annotate is better than geom_text - puts as many texts on as points
+  assign("comp2",comp2,envir = .GlobalEnv)
+  
+} else if (site == "JBLF" || site == "TALF" || site == "WCLF" || site == "WILF" || site == "WMLF" || site == "PCLF" || site == "PILF" || site == "PMLF") {
+  ylabel <- mean(dat3$DOC) - 0.15
+  
+  comp3 <- ggplot(out1_df) +
+  geom_line(aes(time, DOC), color = "orchid4", linetype = "dashed", size = 1.2) +
+  geom_point(data = dat3, aes(time, DOC), shape = 21, color = "black", fill = "orchid4") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = site, tag = "(c)") +
+  annotate("text",x = 12, y = ylabel, label = st)
+#annotate is better than geom_text - puts as many texts on as points
+  assign("comp3",comp3,envir = .GlobalEnv)
+  
+} else if (site == "JBLS" || site == "TALS" || site == "WCLS" || site == "WILS" || site == "WMLS" || site == "PCLS" || site == "PILS" || site == "PMLS") {
+  ylabel <- mean(dat3$DOC) - 0.1
+  
+  comp4 <- ggplot(out1_df) +
+  geom_line(aes(time, DOC), color = "orchid4", linetype = "dashed", size = 1.2) +
+  geom_point(data = dat3, aes(time, DOC), shape = 21, color = "black", fill = "orchid4") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = site, tag = "(d)") +
+  annotate("text",x = 12, y = ylabel, label = st)
+#annotate is better than geom_text - puts as many texts on as points
+  assign("comp4",comp4,envir = .GlobalEnv)
+}
+
+# 
+# 
+# tdcomp <- ((comp1+comp2) / (comp3+comp4)) + 
+#   plot_annotation(title = "Model and Observed DOC over Time") 
+# ggsave(filename=paste(siteID,"td.png",sep=""), width = 7, height = 7, dpi = 300, units = "in", device='png')
+# ggsave(filename=paste(siteID,"td.tiff",sept=""), width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+
+
+# ggplot(out1_df) +
+#   geom_line(aes(time, DOC), color = "mediumorchid", linetype = "dashed", size = 1.2) +
+#   geom_point(data = dat3, aes(time, DOC)) +
+#   theme_minimal() +
+#   labs(x = "Time (hrs)", y = "DOC (mg)", title = "Model and Observed DOC over Time", subtitle = site) +
+#   annotate("text",x = 12, y = ylabel, label = st) 
+#   #xlim(c(0,1))
+# #annotate is better than geom_text - puts as many texts on as points
+# 
+# ggsave(filename=paste(site,"td_modelstats_final",".png",sep=""), width = 7.5, height = 7.5, units = "in")
+# ggsave(filename=paste(site,"td_modelstats_final",".tiff",sep=""), width = 7.5, height = 7.5, units = "in")
+
+comp_out <- left_join(dat3, out1_df, by = "time")
+comp_out <- data.frame(comp_out) %>% mutate(X = site)
+#x = observed, y = out1 data -- pulled to match by time points
+
+}) #comment out if using just one site
+
+all_odeoutput <- bind_rows(comp) #binds all the rows into one data.frame that can be saved to csv
+  #comment out if using just one site
+write.csv(all_odeoutput, "TDep_ODE_output.csv", row.names = FALSE)
+
+```
+
+```{r}
+tdcompJB <- ((comp1+comp2) / (comp3+comp4)) + 
+  plot_annotation(title = "Model and Observed DOC over Time") 
+ggsave(filename = "JBtd.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "JBtd.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+plot(tdcompJB)
+
+tdcompTA <- ((comp1+comp2) / (comp3+comp4)) + 
+  plot_annotation(title = "Model and Observed DOC over Time") 
+ggsave(filename = "TAtd.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "TAtd.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+plot(tdcompTA)
+
+tdcompWC <- ((comp1+comp2) / (comp3+comp4)) + 
+  plot_annotation(title = "Model and Observed DOC over Time") 
+ggsave(filename = "WCtd.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "WCtd.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+plot(tdcompWC)
+
+tdcompWI <- ((comp1+comp2) / (comp3+comp4)) + 
+  plot_annotation(title = "Model and Observed DOC over Time") 
+ggsave(filename = "WItd.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "WItd.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+plot(tdcompWI)
+
+tdcompWM <- ((comp1+comp2) / (comp3+comp4)) + 
+  plot_annotation(title = "Model and Observed DOC over Time") 
+ggsave(filename = "WMtd.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "WMtd.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+plot(tdcompWM)
+
+tdcompPC <- ((comp1+comp2) / (comp3+comp4)) + 
+  plot_annotation(title = "Model and Observed DOC over Time") 
+ggsave(filename = "PCtd.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "PCtd.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+plot(tdcompPC)
+
+tdcompPI <- ((comp1+comp2) / (comp3+comp4)) + 
+  plot_annotation(title = "Model and Observed DOC over Time") 
+ggsave(filename = "PItd.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "PItd.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+plot(tdcompPI)
+
+tdcompPM <- ((comp1+comp2) / (comp3+comp4)) + 
+  plot_annotation(title = "Model and Observed DOC over Time") 
+ggsave(filename = "PMtd.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "PMtd.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+plot(tdcompPM)
+
+```
+
+
+```{r}
+#ode again, but saving all the model output to compare with other models
+
+model_td <- lapply(1:nrow(y0df), function(x){    #do all rows
+#comp <- lapply(c(10:32), function(x){          #try some
+#site = "JBHF"                                #try just one site 
+site <- as.character(y0df$X[x])   
+
+dat <- obs2 %>% filter(exp == site) %>% mutate(time = time_pts)
+
+times <- seq(0, 24.05, by = 0.01)
+
+y0 <- y0df %>% filter(X == site) # filter out from y0 master
+  y0 <- data.matrix(y0) #makes the data frame a numeric
+  y0 <- y0[,-1] #get rid of X label column
+
+dat2 <- dat %>% select(time, DOC) #take out the specifically named columns
+  t0 <- t0dat %>% filter(X == site)
+  t02 <- t0 %>% select(time, DOC)
+  dat3 <- rbind(t02,dat2) #adds the y0 values from that scenario as the true t0 values
+
+parms <- rates %>% filter(as.character(X) == site)
+  parms <- parms[ ,-1]
+  parms2 <- unlist(parms)
+  #parms <- c(kdes = 40, kads = 4.1) #guess at rates
+  
+#parms2 <- c(kdes_fast = 27.7, kdes_slow = 3.3, kads = 1.8)
+
+Ode.fn <- function(times, y0, parms2){
+  
+  with(as.list(c(parms2, y0)), {
+    
+  if (times <= 0.17) {
+    kdes <- kdes_fast
+  } else if (times > 0.17) {
+    kdes <- kdes_slow
+    
+  }
+
+  dDOC <- kdes*Cs - kads*DOC #del mass of DOC in solution
+  dCs <- kads*DOC - kdes*Cs #del mass of DOC on sediment
+
+  list(c(dDOC, dCs))
+  })}
+
+out1 <- ode(y = y0, times = times, func = Ode.fn, parms = parms2)
+#out1 <- ode(y0, times, twocomp, parms)
+out1_df <- data.frame(out1) %>% mutate(X = site)
+
+}) #comment out if using just one site
+
+all_modoutput <- bind_rows(model_td) #binds all the rows into one data.frame that can be saved to csv
+  #comment out if using just one site
+write.csv(all_modoutput, "TDep_Model_output.csv", row.names = FALSE)
+```
+
+# Fit Model
+### used the time-dependent ode function to estimate best rate parameters
+### outputs those rates
+```{r}
+## lapply to fit the data
+
+ans <- lapply(1:nrow(y0df), function(x){    #do all rows
+#ans <- lapply(c(12:32), function(x){          #try some
+#site = "PCHF"                                #try just one site 
+  site <- as.character(y0df$X[x])             #comment out if using just one site
+  print(site)
+  dat <- obs2 %>% filter(exp == site) %>% mutate(time = time_pts)
+  #print(dat)
+  
+  
+  #   if (site == "TAHS") {
+  #     parms2 <- c(kdes_fast = 2.185, kdes_slow = 1.429, kads = 1.887)
+  # } else if (site == "WCHF") {
+  #   parms2 <- c(kdes_fast = 196, kdes_slow = 174, kads = 218)
+  # } else if (site == "WCLS") {
+  #   parms2 <- c(kdes_fast = 9365.19, kdes_slow = 33.09, kads = 11.10)
+  # } else if (site == "WMHF") {
+  #   parms2 <- c(kdes_fast = 22.77, kdes_slow = 17.47, kads = 16.62)
+  # } else if (site == "WMHS") {
+  #   parms2 <- c(kdes_fast = 2559, kdes_slow = 2.16, kads = 2.44)
+  # } else if (site == "WMLF") {
+  #   parms2 <- c(kdes_fast = 527.57, kdes_slow = 9.34, kads = 3.65)
+  # } else if (site == "PCHS") {
+  #   parms2 <- c(kdes_fast = 134, kdes_slow = 100, kads = 123)
+  # } else {
+  #   parms <- rates %>% filter(as.character(X) == site)
+  #   parms <- parms[ ,-1]
+  #   parms2 <- unlist(parms)
+  # }
+  # 
+  parms <- rates %>% filter(as.character(X) == site)
+  parms <- parms[ ,-1]
+  parms2 <- unlist(parms)
+ #parms2 <- c(kdes_fast = 50, kdes_slow = 0.03874, kads = 0.01663)
+  #parms2 <- c(kdes_fast = 1.927, kdes_mid = 36.840, kdes_slow = 3.153, kads = 4.423)
+
+  times <- seq(0, 24, length=1000)
+  
+  y0 <- y0df %>% filter(X == site) # filter out from y0 master
+  y0 <- data.matrix(y0) #makes the data frame a numeric
+  y0 <- y0[,-1] #get rid of X label column
+  #print(y0)
+ 
+  dat2 <- dat %>% select(time, DOC) #take out the specifically named columns
+  t0 <- t0dat %>% filter(X == site)
+  t02 <- t0 %>% select(time, DOC)
+  dat3 <- rbind(t02,dat2) #adds the y0 values from that scenario as the true t0 values
+
+  fit <- modFit(f = cost, p = parms2, dat = dat3, times_out = times, model = Ode.fn, initial = y0,lower = rep(0,3), upper = rep(1000000,3))
+  #assigning a lower boundary of 0 to all 3 parameters
+ 
+  summary(fit)
+  par = data.frame(as.list(fit$par)) %>% mutate(X = site)   #%>% mutate(is.singular = #whatever var name from if statement)
+  #return(par)
+  
+}) #comment out if using just one site
+
+all_ans <- bind_rows(ans) #binds all the rows into one data.frame that can be saved to csv
+  #comment out if using just one site
+write.csv(all_ans, "TDep_Rates_output.csv", row.names = FALSE)
+
+
+```
+
+# Model Perfomance
+### estimates model performance compared to observed values
+### outputs RMSE, MEF, AAE, Spearman rank correlation
+```{r}
+#compare model output to observed data 
+
+stats <- lapply(1:nrow(sites), function(x){    #do all rows
+#ans <- lapply(c(10:32), function(x){          #try some
+#site = "WMHS"                                #try just one site 
+site <- as.character(sites$rates...1.[x])  
+
+ode_out <- all_odeoutput %>% filter(X == site)
+ #x = observed, y = out1 data -- pulled to match by time points
+#ode_out <- comp_out
+ #for when you just want to test 1 site
+
+model <- ode_out$DOC.y
+observed <- ode_out$DOC.x
+
+#MEF - modeling efficiency
+obsaverage <- mean(ode_out$DOC.x)
+obsdiffer <- ode_out %>% mutate(obsdiff = DOC.x - obsaverage)
+obssquare <- obsdiffer %>% mutate(obssq = (obsdiff*obsdiff))
+obssum <- sum(obssquare$obssq)
+Pdifference <- ode_out %>% mutate(Pdiff = DOC.y - DOC.x)
+Psquare <- Pdifference %>% mutate(Psq = (Pdiff*Pdiff))
+Psum <- sum(Psquare$Psq)
+MEF <- (obssum - Psum)/(obssum)
+MEF <- data.frame(MEF) %>% mutate(X = site)
+
+#MEF <- MEF(comp_out$DOC.y, comp_out$DOC.x)
+#MEF(prediction,observation)#
+
+#RMSE - root mean square error
+diff <- ode_out %>% mutate(difference = DOC.y - DOC.x)
+squ <- diff %>% mutate(square = (difference^2))
+add <- sum(squ$square)
+div <- add/8
+RMSE <- sqrt(div)
+RMSE <- data.frame(RMSE) %>% mutate(X = site)
+RMSE <- RMSE[,c(2,1)]
+
+#RMSE <- rmse(ode_out$DOC.x, ode_out$DOC.y)
+#rmse(actual, predicted)
+#using mutate, I can calculate the comparisons and different stats
+
+#AAE - average absolute error
+differ <- ode_out %>% mutate(difference = DOC.y - DOC.x)
+absval <- differ %>% mutate(absolutevalue = abs(difference))
+sigma <- sum(absval$absolutevalue)
+AAE <- sigma/8
+AAE <- data.frame(AAE) %>% mutate(X = site)
+
+#MAE <- mae(ode_out$DOC.x, ode_out$DOC.y)
+#mae(actual, predicted)
+
+SpCorr <- cor(ode_out$DOC.x, ode_out$DOC.y, method = "spearman")
+SpCorr <- data.frame(SpCorr) %>% mutate(X = site)
+
+stats1 <- left_join(RMSE, AAE, by = "X")
+stats2 <- left_join(stats1, MEF, by = "X")
+stats_out <- left_join(stats2, SpCorr, by = "X")
+
+})
+
+all_statoutput <- bind_rows(stats) #binds all the rows into one data.frame that can be saved to csv
+  #comment out if using just one site
+write.csv(all_statoutput, "TDep_Stats_output.csv", row.names = FALSE)
+
+
+```
+
+### Clean Up
+```{r}
+rm(list = ls())  # Clean up
+#ctrl+l clears the console
+
+```
+
