@@ -313,65 +313,6 @@ ggplot(out1_df) +
 ggsave(filename=paste(site,"lang",".png",sep=""))
 ggsave(filename=paste(site,"lang",".tiff",sep=""))
 
-# if (site == "JBHF" || site == "TAHF" || site == "WCHF" || site == "WIHF" || site == "WMHF" || site == "PCHF" || site == "PIHF" || site == "PMHF") {
-#   ylabel <- max(dat4$DOC)
-#   
-#   comp1 <- ggplot(out1_df) +
-#   geom_line(aes(time, DOC), color = "darkseagreen", size = 1.2) +
-#   geom_point(data = dat4, aes(time, DOC)) +
-#   theme_minimal() +
-#   labs(x = "Time (hrs)", y = "DOC (mg)", title = site, tag = "(a)") +
-#   annotate("text",x = 12, y = ylabel, label = st)
-# #annotate is better than geom_text - puts as many texts on as points
-#   assign("comp1",comp1,envir = .GlobalEnv)
-#   
-# } else if (site == "JBHS" || site == "TAHS" || site == "WCHS" || site == "WIHS" || site == "WMHS" || site == "PCHS" || site == "PIHS" || site == "PMHS") {
-#   ylabel <- max(dat4$DOC)
-#   
-#   comp2 <- ggplot(out1_df) +
-#   geom_line(aes(time, DOC), color = "darkseagreen", size = 1.2) +
-#   geom_point(data = dat4, aes(time, DOC)) +
-#   theme_minimal() +
-#   labs(x = "Time (hrs)", y = "DOC (mg)", title = site, tag = "(b)") +
-#   annotate("text",x = 12, y = ylabel, label = st)
-# #annotate is better than geom_text - puts as many texts on as points
-#   assign("comp2",comp2,envir = .GlobalEnv)
-#   
-# } else if (site == "JBLF" || site == "TALF" || site == "WCLF" || site == "WILF" || site == "WMLF" || site == "PCLF" || site == "PILF" || site == "PMLF") {
-#   ylabel <- min(dat4$DOC)
-#   
-#   comp3 <- ggplot(out1_df) +
-#   geom_line(aes(time, DOC), color = "darkseagreen", size = 1.2) +
-#   geom_point(data = dat4, aes(time, DOC)) +
-#   theme_minimal() +
-#   labs(x = "Time (hrs)", y = "DOC (mg)", title = site, tag = "(c)") +
-#   annotate("text",x = 12, y = ylabel, label = st)
-# #annotate is better than geom_text - puts as many texts on as points
-#   assign("comp3",comp3,envir = .GlobalEnv)
-#   
-# } else if (site == "JBLS" || site == "TALS" || site == "WCLS" || site == "WILS" || site == "WMLS" || site == "PCLS" || site == "PILS" || site == "PMLS") {
-#   ylabel <- min(dat4$DOC)
-#   
-#   comp4 <- ggplot(out1_df) +
-#   geom_line(aes(time, DOC), color = "darkseagreen", size = 1.2) +
-#   geom_point(data = dat4, aes(time, DOC)) +
-#   theme_minimal() +
-#   labs(x = "Time (hrs)", y = "DOC (mg)", title = site, tag = "(d)") +
-#   annotate("text",x = 12, y = ylabel, label = st)
-# #annotate is better than geom_text - puts as many texts on as points
-#   assign("comp4",comp4,envir = .GlobalEnv)
-# }
-# # comp1 <- ggplot(out1_df) +
-#   geom_line(aes(time, DOC), color = "darkseagreen", size = 1.2) +
-#   geom_point(data = dat4, aes(time, DOC)) +
-#   theme_minimal() +
-#   labs(x = "Time (hrs)", y = "DOC (mg)", title = "Model and Observed DOC over Time", subtitle = site, tag = tag) +
-#   annotate("text",x = 12, y = ylabel, label = st)
-# #annotate is better than geom_text - puts as many texts on as points
-
-# ggsave(filename=paste(site,"tag",".png",sep=""), width = 7.5, height = 7.5, units = "in")
-# ggsave(filename=paste(site,"tag",".tiff",sep=""), width = 7.5, height = 7.5, units = "in")
-
 comp_out <- left_join(dat4, out1_df, by = "time")
 comp_out <- data.frame(comp_out) %>% mutate(X = site)
 #x = observed, y = out1 data -- pulled to match by time points
