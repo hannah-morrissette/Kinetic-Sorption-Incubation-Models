@@ -1,0 +1,420 @@
+---
+title: "Linear Model"
+author: "Hannah Morrissette"
+date: "26 Dec 2023"
+output: html_document
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Logistic Setup
+
+## Package dependencies
+
+```{r}
+library(deSolve)
+library("FME")
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(tidyverse)
+library(modelr)
+```
+
+# Model structure
+
+## Parameter names & Equations 
+
+### Change in mass over time (mg/hr)
+- dDOC = change in DOC mass in solution over time
+- dCs  = change in sorbed organic carbon mass over time
+
+### Rate parameters (hr-1)
+- kdes = desorption rate
+- kads = adsorption rate
+
+### State Variables (mg)
+- Cs = mass of organic carbon sorbed on soils
+- DOC = mass of DOC free in solution
+
+### First order ODEs 
+- dDOC <- kdes * Cs - kads * DOC #del mass of DOC in solution
+- dCs <- kads * DOC - kdes * Cs #del mass of OC on sediment
+
+### ID names
+- JB__ or TA__ = kinetic experiments
+  - JB = Jug Bay
+  - TA = Taskinas
+- W___ or P___ = spatial kinetic experiments
+  - W = shallow, P = deep
+  - C = creek edge, I = intermediate site, M = high marsh
+- __HF, __HS, __LF, __LS = scenario
+  - HF = High initial [DOC], Fresh
+  - HS = High initial [DOC], Saline
+  - LF = Low initial [DOC], Fresh
+  - LS = Low initial [DOC], Saline
+- 1-7 = time points
+  - 1 = 0 min, 2 = 10 min, 3 = 15 min, 4 = 1 hr, 5 = 6 hr, 6 = 12 hr, 7 = 24 hr
+
+
+## Compartment Model 
+
+### List the two state variable ODEs
+```{r}
+twocomp <- function (time, y, parms, ...) {
+   with(as.list(c(parms, y)), {
+   dDOC <- kdes*Cs - kads*DOC #del mass of DOC in solution
+   dCs <- kads*DOC - kdes*Cs #del mass of OC on sediment
+   list(c(dDOC, dCs))})}
+
+```
+
+# Data organization
+
+## Time
+- Time will always stay the same 7 values: 0, 0.17, 0.25, 1, 6, 12, 24
+- hours
+- added +0.05 to each time point so that the time0 would represent the 3 minutes 
+
+## Observed values
+- Only have measured observed values for DOC 
+- These will change with every scenario -- need to input these data
+
+## Initial Values for model
+- Two y0 values for DOC, Cs
+- These will change with every scenario -- need to input these data
+- Rate parameter k's might change but the first guess could be the same for each
+
+### Using dplyr to manipulate the data
+- Try to use .csv as default file formats
+- Try not to have spaces or unconventional characters in title names
+- Remember that initial values must be in  the same order as the ODE order (Use %>% select())
+- data.frame <- as.numeric changes data to vector
+- Use str() to compare the data types 
+
+
+## Read in time, y0, and obs values
+```{r}
+
+time_pts <- c(0.05, 0.22, 0.30, 1.05, 6.05, 12.05, 24.05) 
+#adding in inoculation to incubation start time (3 min = 0.05 hours)
+
+y0df <- read.csv("Linear_y0_input.csv")  #input your own path here
+
+#adding y0 values as t0 values in observed 
+zero <- rep(0, 32) #creates a vector of zeros 32 spaces long
+t0dat <- y0df[,1:2] #takes columns 1-2 of y0df and makes new dataframe
+t0dat["time"] <- zero #adds the vector of zeros to a new column named "time"
+t0dat <- t0dat[ , c(1, 3, 2)] #puts the time column first
+#this is all to match up to dat2 in lapply code
+
+obs <- read.csv("Linear_Obs_input.csv")  #input your own path here
+
+obs2 <- obs %>% separate(X, c("exp", "time"), 4)
+
+rates <- read.csv("Linear_Rates_input.csv")  #input your own path here
+
+rates <- rates[, c(3,1:2)]
+sites <- data.frame(rates[,1])
+
+statistics <- read.csv("Linear_Stats_input.csv")
+```
+
+## Use dplyr and tidyr to select the observational data for the experiment
+### Examples
+
+- JHF <- y0df %>% filter(X == "JBHF")
+- obs2 <- obs %>% separate(X, c("exp", "time"), 4) -- breaks one column into two at the fourth character
+- JHF <- obs2 %>% filter(exp == "JBHF")
+- obs3 <- obs2 %>% mutate(time = c(0,0.17,0.25,1,6,12,24)) -- adds time to data frame if it wasn't already there
+
+
+# Cost Function 
+```{r}
+
+cost <- function(p, dat, times_out, model, initial) {
+  out <- ode(initial, times_out, model, p, method = "bdf")
+ #  out <- ode(initial, times_out, model, p)
+  modCost(out, dat, weight = "none")} # try weight = "std" or "mean"
+
+```
+
+# Run the Model
+```{r}
+## lapply to fit the data
+
+ans <- lapply(1:nrow(y0df), function(x){    #do all rows
+#ans <- lapply(c(26:32), function(x){          #try some
+#site = "JBLS"                                #try just one site 
+site <- as.character(y0df$X[x])             #comment out if using just one site
+  print(site)
+  dat <- obs2 %>% filter(exp == site) %>% mutate(time = time_pts)
+  
+  parms <- rates %>% filter(as.character(X) == site)
+  parms <- parms[ ,-1]
+  parms <- unlist(parms)
+  
+  # parms <- c(kdes = 1, kads = 1) #guess at rates - only use this if first time running
+
+  times <- seq(0, 24, length=800)
+  #do a version just checking the 8 actual time points instead of all of these
+  
+  #maxtime = 24 
+  #timestep = 1e-3
+  #times <-c(0, maxtime-timestep, maxtime) #still calculates every time step but it only prints out the three values (space saver)
+  
+  y0 <- y0df %>% filter(X == site) # filter out from y0 master
+  y0 <- data.matrix(y0) #makes the data frame a numeric
+  y0 <- y0[,-1] #get rid of X label column
+  
+
+   dat2 <- dat %>% select(time, DOC) #take out the specifically named columns
+   t0 <- t0dat %>% filter(X == site)
+   t02 <- t0 %>% select(time, DOC)
+   dat3 <- rbind(t02,dat2) #adds the y0 values from that scenario as the true t0 values
+   #dat4 <- dat3[-c(2:5),]
+
+  if (site == "PMHF") {
+    dat4 <- dat3[-3,]
+  } else if (site == "JBHF" || site == "PCLF" || site == "PCLS" || site == "WIHF" || site == "PIHF") {
+    dat4 <- dat3[-c(2:3),]
+  } else if (site == "PCHF") {
+    dat4 <- dat3[-2,]
+  } else if (site == "TAHS" || site == "PCHS" || site == "WCHF" || site == "WCHS" || site == "WMHF" || site == "WMHS" || site == "WMLF" || site == "WMLS"|| site == "JBHS" || site == "JBLF" || site == "WCLF" || site == "PIHS" || site == "PILF" || site == "PILS" || site == "PMLS" || site == "PMLF" || site == "TAHF" || site == "TALF" || site == "TALS" || site == "WILF" || site == "WILS" || site == "JBLS") {
+    dat4 <- dat3[-c(2:4),]
+  } else if (site == "PMHS" || site == "WIHS") {
+    dat4 <- dat3[-c(4:6),]
+  } else if (site == "WCLS") {
+    dat4 <- dat3[-c(2,5),]
+  }
+
+ 
+  fit <- modFit(f = cost, p = parms, dat = dat4, times_out = times, model = twocomp, initial = y0,lower = rep(0,2))
+  #assigning a lower boundary of 0 to all 6 parameters
+ 
+  summary(fit)
+  
+  par = data.frame(as.list(fit$par)) %>% mutate(X = site)   
+
+}) #comment out if using just one site
+
+all_ans <- bind_rows(ans) #binds all the rows into one data.frame that can be saved to csv
+  #comment out if using just one site
+write.csv(all_ans, "Linear_Rates_output.csv", row.names = FALSE)
+```
+
+
+```{r}
+#lapply for new times length and ode line
+
+comp <- lapply(1:nrow(y0df), function(x){    #do all rows
+#comp <- lapply(c(10:32), function(x){          #try some
+#site = "JBLS"                                #try just one site 
+site <- as.character(y0df$X[x])  
+print(site)
+
+dat <- obs2 %>% filter(exp == site) %>% mutate(time = time_pts)
+
+times <- seq(0, 24.05, by = 0.001)
+
+y0 <- y0df %>% filter(X == site) # filter out from y0 master
+  y0 <- data.matrix(y0) #makes the data frame a numeric
+  y0 <- y0[,-1] #get rid of X label column
+
+   dat2 <- dat %>% select(time, DOC) #take out the specifically named columns
+   t0 <- t0dat %>% filter(X == site)
+   t02 <- t0 %>% select(time, DOC)
+   dat3 <- rbind(t02,dat2) #adds the y0 values from that scenario as the true t0 values
+   #dat4 <- dat3[-c(2:5),]
+
+  if (site == "PMHF") {
+    dat4 <- dat3[-3,]
+  } else if (site == "JBHF" || site == "PCLF" || site == "PCLS" || site == "WIHF" || site == "PIHF") {
+    dat4 <- dat3[-c(2:3),]
+  } else if (site == "PCHF") {
+    dat4 <- dat3[-2,]
+  } else if (site == "TAHS" || site == "PCHS" || site == "WCHF" || site == "WCHS" || site == "WMHF" || site == "WMHS" || site == "WMLF" || site == "WMLS" || site == "JBHS" || site == "JBLF" || site == "WCLF" || site == "PIHS" || site == "PILF" || site == "PILS" || site == "PMLF" || site == "PMLS" || site == "TAHF" || site == "TALF" || site == "TALS" || site == "WILF" || site == "WILS" || site == "JBLS") {
+    dat4 <- dat3[-c(2:4),]
+  } else if (site == "PMHS") {
+    dat4 <- dat3[-c(4:6),]
+  } else if (site == "WIHS") {
+    dat4 <- dat3[-c(4:5),] 
+  } else if (site == "WCLS") {
+    dat4 <- dat3[-c(2,5),]
+  }
+
+
+parms <- rates %>% filter(as.character(X) == site)
+  parms <- parms[ ,-1]
+  parms <- unlist(parms)
+#parms <- c(kdes = 1, kads = 1) #guess at rates
+  
+out1 <- ode(y0, times, twocomp, parms)
+out1_df <- data.frame(out1)
+
+statlabel <- statistics %>% filter(X == site)
+#statlabel <- stats_out
+RMSE <- round(statlabel[,2], digits = 3)
+MEF <- round(statlabel[,4], digits = 3)
+ylabel <- max(dat3$DOC)
+
+st <- paste0("RMSE = ",RMSE, ", MEF = ",MEF)
+#\n breaks it into a different line -> "\n MEF = "
+
+#st <- c(expression("test \n"), expression("r"^"2"))
+#center aligns with things that need expressions
+
+ggplot(out1_df) +
+  geom_line(aes(time, DOC), color = "darkorange2", linetype = "dotdash", linewidth = 1.2) +
+  geom_point(data = dat4, aes(time, DOC)) +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Model and Observed DOC over Time", subtitle = paste(site)) +
+  annotate("text",x = 12, y = ylabel, label = st)
+#annotate is better than geom_text - puts as many texts on as points
+
+ggsave(filename=paste(site,"simp",".png",sep=""))
+ggsave(filename=paste(site,"simp",".tiff",sep=""))
+
+comp_out <- left_join(dat4, out1_df, by = "time")
+comp_out <- data.frame(comp_out) %>% mutate(X = site)
+#x = observed, y = out1 data -- pulled to match by time points
+
+}) #comment out if using just one site
+
+all_odeoutput <- bind_rows(comp) #binds all the rows into one data.frame that can be saved to csv
+  #comment out if using just one site
+write.csv(all_odeoutput, "Linear_ODE_output.csv", row.names = FALSE)
+```
+
+
+```{r}
+#ode again, but saving all the model output to compare with other models
+
+model_simp <- lapply(1:nrow(y0df), function(x){    #do all rows
+#comp <- lapply(c(10:32), function(x){          #try some
+#site = "JBLS"                                #try just one site 
+site <- as.character(y0df$X[x])   
+
+dat <- obs2 %>% filter(exp == site) %>% mutate(time = time_pts)
+
+times <- seq(0, 24.05, by = 0.01)
+
+y0 <- y0df %>% filter(X == site) # filter out from y0 master
+  y0 <- data.matrix(y0) #makes the data frame a numeric
+  y0 <- y0[,-1] #get rid of X label column
+
+dat2 <- dat %>% select(time, DOC) #take out the specifically named columns
+  t0 <- t0dat %>% filter(X == site)
+  t02 <- t0 %>% select(time, DOC)
+  dat3 <- rbind(t02,dat2) #adds the y0 values from that scenario as the true t0 values
+  #dat4 <- dat3[-c(2:5),]
+
+if (site == "PMHF") {
+    dat4 <- dat3[-3,]
+  } else if (site == "JBHF" || site == "JBLS" || site == "PCLF" || site == "PCLS" || site == "WIHF" || site == "PIHF") {
+    dat4 <- dat3[-c(2:3),]
+  } else if (site == "PCHF") {
+    dat4 <- dat3[-2,]
+  } else if (site == "TAHS" || site == "PCHS" || site == "WCHF" || site == "WCHS" || site == "WMHF" || site == "WMHS" || site == "WMLF" || site == "WMLS" || site == "JBHS" || site == "JBLF" || site == "WCLF" || site == "PIHS" || site == "PILF" || site == "PILS" || site == "PMLF" || site == "PMLS" || site == "TAHF" || site == "TALF" || site == "TALS" || site == "WILF" || site == "WILS") {
+    dat4 <- dat3[-c(2:4),]
+  } else if (site == "PMHS") {
+    dat4 <- dat3[-c(4:6),]
+  } else if (site == "WIHS") {
+    dat4 <- dat3[-c(4:5),] 
+  } else if (site == "WCLS") {
+    dat4 <- dat3[-c(2,5),]
+  }
+
+parms <- rates %>% filter(as.character(X) == site)
+  parms <- parms[ ,-1]
+  parms <- unlist(parms)
+  #parms <- c(kdes = 0.1064, kads = 0.3382) #guess at rates
+  
+out1 <- ode(y0, times, twocomp, parms)
+out1_df <- data.frame(out1) %>% mutate(X = site)
+
+
+}) #comment out if using just one site
+
+all_modoutput <- bind_rows(model_simp) #binds all the rows into one data.frame that can be saved to csv
+  #comment out if using just one site
+write.csv(all_modoutput, "Linear_Model_output.csv", row.names = FALSE)
+```
+
+
+
+```{r}
+#compare model output to observed data 
+
+stats <- lapply(1:nrow(sites), function(x){    #do all rows
+#ans <- lapply(c(10:32), function(x){          #try some
+#site = "JBLS"                                #try just one site 
+site <- as.character(sites$rates...1.[x])  
+
+ode_out <- all_odeoutput %>% filter(X == site)
+ #x = observed, y = out1 data -- pulled to match by time points
+ ode_out <- ode_out[-3,]
+
+model <- ode_out$DOC.y
+observed <- ode_out$DOC.x
+
+#MEF - modeling efficiency
+obsaverage <- mean(ode_out$DOC.x)
+obsdiffer <- ode_out %>% mutate(obsdiff = DOC.x - obsaverage)
+obssquare <- obsdiffer %>% mutate(obssq = (obsdiff*obsdiff))
+obssum <- sum(obssquare$obssq)
+Pdifference <- ode_out %>% mutate(Pdiff = DOC.y - DOC.x)
+Psquare <- Pdifference %>% mutate(Psq = (Pdiff*Pdiff))
+Psum <- sum(Psquare$Psq)
+MEF <- (obssum - Psum)/(obssum)
+MEF <- data.frame(MEF) %>% mutate(X = site)
+
+#MEF <- MEF(comp_out$DOC.y, comp_out$DOC.x)
+#MEF(prediction,observation)#
+
+#RMSE - root mean square error
+diff <- ode_out %>% mutate(difference = DOC.y - DOC.x)
+squ <- diff %>% mutate(square = (difference^2))
+add <- sum(squ$square)
+div <- add/7
+RMSE <- sqrt(div)
+RMSE <- data.frame(RMSE) %>% mutate(X = site)
+RMSE <- RMSE[,c(2,1)]
+
+#RMSE <- rmse(ode_out$DOC.x, ode_out$DOC.y)
+#rmse(actual, predicted)
+#using mutate, I can calculate the comparisons and different stats
+
+#AAE - average absolute error
+differ <- ode_out %>% mutate(difference = DOC.y - DOC.x)
+absval <- differ %>% mutate(absolutevalue = abs(difference))
+sigma <- sum(absval$absolutevalue)
+AAE <- sigma/7
+AAE <- data.frame(AAE) %>% mutate(X = site)
+
+#MAE <- mae(ode_out$DOC.x, ode_out$DOC.y)
+#mae(actual, predicted)
+
+SpCorr <- cor(ode_out$DOC.x, ode_out$DOC.y, method = "spearman")
+SpCorr <- data.frame(SpCorr) %>% mutate(X = site)
+
+stats1 <- left_join(RMSE, AAE, by = "X")
+stats2 <- left_join(stats1, MEF, by = "X")
+stats_out <- left_join(stats2, SpCorr, by = "X")
+
+})
+
+all_statoutput <- bind_rows(stats) #binds all the rows into one data.frame that can be saved to csv
+  #comment out if using just one site
+write.csv(all_statoutput, "Linear_Stats_output.csv", row.names = FALSE)
+```
+
+### Clean Up
+```{r}
+rm(list = ls())  # Clean up
+#ctrl+l clears the console
+
+```
