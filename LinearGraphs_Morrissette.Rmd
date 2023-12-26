@@ -1,0 +1,745 @@
+---
+title: "Linear Graphs"
+author: "Hannah Morrissette"
+date: "26 Dec 2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(patchwork)
+```
+
+```{r}
+t <- c(0, 0.063, 0.22, 0.30, 1.05, 6.05, 12.05, 24.05) 
+
+obsdat <- read.csv("DOC0_Obs.csv")
+obsdat2 <- obsdat %>% separate(site, c("exp", "point"), 4)
+```
+
+## JUG BAY
+```{r}
+#z <- (exp(-1*(ka + kd)*t))
+
+#W(t) <- (1 / (ka + kd))*((S0 * kd * (1 - (exp(-1*(ka + kd)*t)))) + (W0 * (ka + (kd * (exp(-1*(ka + kd)*t))))))
+
+lf <- obsdat2 %>% filter(exp == "JBLF")
+hf <- obsdat2 %>% filter(exp == "JBHF")
+
+kaF <- 0.9249
+kdF <- 0.3829 
+S0 <- 4.284
+
+y0F <- c(0.077, 8.867)
+
+#LOW
+WLt <- function(t) (1 / (kaF + kdF))*((S0 * kdF * (1 - (exp(-1*(kaF + kdF)*t)))) + (y0F[1] * (kaF + (kdF * (exp(-1*(kaF + kdF)*t))))))
+
+#HIGH
+WHt <- function(t) (1 / (kaF + kdF))*((S0 * kdF * (1 - (exp(-1*(kaF + kdF)*t)))) + (y0F[2] * (kaF + (kdF * (exp(-1*(kaF + kdF)*t))))))
+
+stl <- paste0("Low [DOC]")
+yl <- (max(lf$DOC)+0.8)
+sth <- paste0("High [DOC]")
+yh <- (min(hf$DOC)+0.8)
+rsqf <- expression('RMSE = 0.319')
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+comp1 <- base + geom_function(fun = WLt, color = "red3", linetype = "dashed", size = 1.2) +
+  geom_point(data = lf, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
+  geom_function(fun = WHt, color = "salmon", linetype = "dashed", size = 1.2) +
+  geom_point(data = hf, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Fresh", tag = "(a)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "red3") +
+  annotate("text",x = 12, y = yh, label = sth, color = "salmon") +
+  annotate("text",x = 12, y = 4, label = rsqf)
+comp1
+
+```
+
+```{r}
+ls <- obsdat2 %>% filter(exp == "JBLS")
+hs <- obsdat2 %>% filter(exp == "JBHS")
+
+kaS <- 0.9269
+kdS <- 1.1075
+S0 <- 4.5
+
+y0S <- c(0.1053, 8.385)
+
+#LOW
+WLt <- function(t) (1 / (kaS + kdS))*((S0 * kdS * (1 - (exp(-1*(kaS + kdS)*t)))) + (y0S[1] * (kaS + (kdS * (exp(-1*(kaS + kdS)*t))))))
+
+#HIGH
+WHt <- function(t) (1 / (kaS + kdS))*((S0 * kdS * (1 - (exp(-1*(kaS + kdS)*t)))) + (y0S[2] * (kaS + (kdS * (exp(-1*(kaS + kdS)*t))))))
+
+stl <- paste0("Low [DOC]")
+yl <- (max(ls$DOC)+0.5)
+sth <- paste0("High [DOC]")
+yh <- (min(hs$DOC)+0.5)
+rsqs <- expression('RMSE = 1.366')
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+comp2 <- base + geom_function(fun = WLt, color = "red3", linetype = "dashed", size = 1.2) +
+  geom_point(data = ls, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
+  geom_function(fun = WHt, color = "salmon", linetype = "dashed", size = 1.2) +
+  geom_point(data = hs, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Saline", tag = "(b)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "red3") +
+  annotate("text",x = 12, y = yh, label = sth, color = "salmon") +
+  annotate("text",x = 12, y = 3, label = rsqs)
+comp2
+```
+
+```{r}
+compJB <- (comp1+comp2) + 
+  plot_annotation(title = "Model and Observed DOC over Time", subtitle = "Jug Bay") 
+ggsave(filename = "JBcomp_new.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "JBcomp_new.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+
+plot(compJB)
+```
+
+
+## TASKINAS
+```{r}
+#z <- (exp(-1*(ka + kd)*t))
+
+#W(t) <- (1 / (ka + kd))*((S0 * kd * (1 - (exp(-1*(ka + kd)*t)))) + (W0 * (ka + (kd * (exp(-1*(ka + kd)*t))))))
+
+lf <- obsdat2 %>% filter(exp == "TALF")
+hf <- obsdat2 %>% filter(exp == "TAHF")
+
+kaF <- -0.0099
+kdF <- -0.0010
+S0 <- 2.0298
+
+y0F <- c(0.1216, 8.780)
+
+#LOW
+WLt <- function(t) (1 / (kaF + kdF))*((S0 * kdF * (1 - (exp(-1*(kaF + kdF)*t)))) + (y0F[1] * (kaF + (kdF * (exp(-1*(kaF + kdF)*t))))))
+
+#HIGH
+WHt <- function(t) (1 / (kaF + kdF))*((S0 * kdF * (1 - (exp(-1*(kaF + kdF)*t)))) + (y0F[2] * (kaF + (kdF * (exp(-1*(kaF + kdF)*t))))))
+
+stl <- paste0("Low [DOC]")
+yl <- (max(lf$DOC)+0.8)
+sth <- paste0("High [DOC]")
+yh <- (min(hf$DOC)+1.3)
+rsqf <- expression('RMSE = 0.953')
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+comp1 <- base + geom_function(fun = WLt, color = "red3", linetype = "dashed", size = 1.2) +
+  geom_point(data = lf, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
+  geom_function(fun = WHt, color = "salmon", linetype = "dashed", size = 1.2) +
+  geom_point(data = hf, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Fresh", tag = "(a)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "red3") +
+  annotate("text",x = 12, y = yh, label = sth, color = "salmon")+
+  annotate("text",x = 12, y = 5, label = rsqf)
+comp1
+```
+
+```{r}
+ls <- obsdat2 %>% filter(exp == "TALS")
+hs <- obsdat2 %>% filter(exp == "TAHS")
+
+kaS <- 1.9571
+kdS <- 0.6884
+S0 <- 1.95
+
+y0S <- c(0.1243, 8.413)
+
+#LOW
+WLt <- function(t) (1 / (kaS + kdS))*((S0 * kdS * (1 - (exp(-1*(kaS + kdS)*t)))) + (y0S[1] * (kaS + (kdS * (exp(-1*(kaS + kdS)*t))))))
+
+#HIGH
+WHt <- function(t) (1 / (kaS + kdS))*((S0 * kdS * (1 - (exp(-1*(kaS + kdS)*t)))) + (y0S[2] * (kaS + (kdS * (exp(-1*(kaS + kdS)*t))))))
+
+stl <- paste0("Low [DOC]")
+yl <- (max(ls$DOC)+0.5)
+sth <- paste0("High [DOC]")
+yh <- (min(hs$DOC)+0.5)
+rsqs <- expression('RMSE = 0.371')
+#rsqs <- expression(~R^{"2"}~ 'adj = 0.9961')
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+comp2 <- base + geom_function(fun = WLt, color = "red3", linetype = "dashed", size = 1.2) +
+  geom_point(data = ls, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
+  geom_function(fun = WHt, color = "salmon", linetype = "dashed", size = 1.2) +
+  geom_point(data = hs, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Saline", tag = "(b)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "red3") +
+  annotate("text",x = 12, y = yh, label = sth, color = "salmon")+
+  annotate("text",x = 12, y = 4, label = rsqs)
+comp2
+```
+
+```{r}
+compTA <- (comp1+comp2) + 
+  plot_annotation(title = "Model and Observed DOC over Time", subtitle = "Taskinas") 
+ggsave(filename = "TAcomp_new.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "TAcomp_new.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+
+plot(compTA)
+```
+
+
+## SHALLOW CREEK
+```{r}
+#z <- (exp(-1*(ka + kd)*t))
+
+#W(t) <- (1 / (ka + kd))*((S0 * kd * (1 - (exp(-1*(ka + kd)*t)))) + (W0 * (ka + (kd * (exp(-1*(ka + kd)*t))))))
+
+
+lf <- obsdat2 %>% filter(exp == "WCLF")
+hf <- obsdat2 %>% filter(exp == "WCHF")
+
+kaF <- 1.0158
+kdF <- 0.2690
+S0 <- 1
+
+y0F <- c(0.0419, 3.0025)
+
+#LOW
+WLt <- function(t) (1 / (kaF + kdF))*((S0 * kdF * (1 - (exp(-1*(kaF + kdF)*t)))) + (y0F[1] * (kaF + (kdF * (exp(-1*(kaF + kdF)*t))))))
+
+#HIGH
+WHt <- function(t) (1 / (kaF + kdF))*((S0 * kdF * (1 - (exp(-1*(kaF + kdF)*t)))) + (y0F[2] * (kaF + (kdF * (exp(-1*(kaF + kdF)*t))))))
+
+stl <- paste0("Low [DOC]")
+yl <- (max(lf$DOC)+0.3)
+sth <- paste0("High [DOC]")
+yh <- (min(hf$DOC)+0.5)
+rsqf <- expression('RMSE = 0.186')
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+comp1 <- base + geom_function(fun = WLt, color = "red3", linetype = "dashed", size = 1.2) +
+  geom_point(data = lf, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
+  geom_function(fun = WHt, color = "salmon", linetype = "dashed", size = 1.2) +
+  geom_point(data = hf, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Fresh", tag = "(a)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "red3") +
+  annotate("text",x = 12, y = yh, label = sth, color = "salmon")+
+  annotate("text",x = 12, y = 1.5, label = rsqf)
+comp1
+
+```
+
+```{r}
+ls <- obsdat2 %>% filter(exp == "WCLS")
+hs <- obsdat2 %>% filter(exp == "WCHS")
+
+kaS <- 0.5361
+kdS <- 0.7598
+S0 <- 0.93
+
+y0S <- c(0.0721, 2.9545)
+
+#LOW
+WLt <- function(t) (1 / (kaS + kdS))*((S0 * kdS * (1 - (exp(-1*(kaS + kdS)*t)))) + (y0S[1] * (kaS + (kdS * (exp(-1*(kaS + kdS)*t))))))
+
+#HIGH
+WHt <- function(t) (1 / (kaS + kdS))*((S0 * kdS * (1 - (exp(-1*(kaS + kdS)*t)))) + (y0S[2] * (kaS + (kdS * (exp(-1*(kaS + kdS)*t))))))
+
+stl <- paste0("Low [DOC]")
+yl <- (max(ls$DOC)+0.3)
+sth <- paste0("High [DOC]")
+yh <- (min(hs$DOC)+0.3)
+rsqs <- expression('RMSE = 0.320')
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+comp2 <- base + geom_function(fun = WLt, color = "red3", linetype = "dashed", size = 1.2) +
+  geom_point(data = ls, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
+  geom_function(fun = WHt, color = "salmon", linetype = "dashed", size = 1.2) +
+  geom_point(data = hs, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Saline", tag = "(b)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "red3") +
+  annotate("text",x = 12, y = yh, label = sth, color = "salmon")+
+  annotate("text",x = 12, y = 1.25, label = rsqs)
+comp2
+```
+
+```{r}
+compWC <- (comp1+comp2) + 
+  plot_annotation(title = "Model and Observed DOC over Time", subtitle = "Shallow Creek") 
+ggsave(filename = "WCcomp_new.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "WCcomp_new.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+
+plot(compWC)
+```
+
+
+## SHALLOW INTERMEDIATE
+```{r}
+#z <- (exp(-1*(ka + kd)*t))
+
+#W(t) <- (1 / (ka + kd))*((S0 * kd * (1 - (exp(-1*(ka + kd)*t)))) + (W0 * (ka + (kd * (exp(-1*(ka + kd)*t))))))
+
+lf <- obsdat2 %>% filter(exp == "WILF")
+hf <- obsdat2 %>% filter(exp == "WIHF")
+
+kaF <- 0.2984
+kdF <- -0.0205
+S0 <- 1.03
+
+y0F <- c(0.0689, 3.1030)
+
+#LOW
+WLt <- function(t) (1 / (kaF + kdF))*((S0 * kdF * (1 - (exp(-1*(kaF + kdF)*t)))) + (y0F[1] * (kaF + (kdF * (exp(-1*(kaF + kdF)*t))))))
+
+#HIGH
+WHt <- function(t) (1 / (kaF + kdF))*((S0 * kdF * (1 - (exp(-1*(kaF + kdF)*t)))) + (y0F[2] * (kaF + (kdF * (exp(-1*(kaF + kdF)*t))))))
+
+stl <- paste0("Low [DOC]")
+yl <- (max(lf$DOC)+0.5)
+sth <- paste0("High [DOC]")
+yh <- (min(hf$DOC))
+rsqf <- expression('RMSE = 0.472')
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+comp1 <- base + geom_function(fun = WLt, color = "red3", linetype = "dashed", size = 1.2) +
+  geom_point(data = lf, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
+  geom_function(fun = WHt, color = "salmon", linetype = "dashed", size = 1.2) +
+  geom_point(data = hf, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Fresh", tag = "(a)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "red3") +
+  annotate("text",x = 12, y = yh, label = sth, color = "salmon")+
+  annotate("text",x = 12, y = 2, label = rsqf)
+comp1
+```
+
+```{r}
+ls <- obsdat2 %>% filter(exp == "WILS")
+hs <- obsdat2 %>% filter(exp == "WIHS")
+
+kaS <- 3.8332
+kdS <- 1.3642
+S0 <- 0.965
+
+y0S <- c(0.0838, 2.9545)
+
+#LOW
+WLt <- function(t) (1 / (kaS + kdS))*((S0 * kdS * (1 - (exp(-1*(kaS + kdS)*t)))) + (y0S[1] * (kaS + (kdS * (exp(-1*(kaS + kdS)*t))))))
+
+#HIGH
+WHt <- function(t) (1 / (kaS + kdS))*((S0 * kdS * (1 - (exp(-1*(kaS + kdS)*t)))) + (y0S[2] * (kaS + (kdS * (exp(-1*(kaS + kdS)*t))))))
+
+stl <- paste0("Low [DOC]")
+yl <- (max(ls$DOC)+0.5)
+sth <- paste0("High [DOC]")
+yh <- (min(hs$DOC)+0.25)
+rsqs <- expression('RMSE = 0.132')
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+comp2 <- base + geom_function(fun = WLt, color = "red3", linetype = "dashed", size = 1.2) +
+  geom_point(data = ls, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
+  geom_function(fun = WHt, color = "salmon", linetype = "dashed", size = 1.2) +
+  geom_point(data = hs, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Saline", tag = "(b)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "red3") +
+  annotate("text",x = 12, y = yh, label = sth, color = "salmon")+
+  annotate("text",x = 12, y = 1.75, label = rsqs)
+comp2
+```
+
+```{r}
+compWI <- (comp1+comp2) + 
+  plot_annotation(title = "Model and Observed DOC over Time", subtitle = "Shallow Intermediate") 
+ggsave(filename = "WIcomp_new.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "WIcomp_new.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+
+plot(compWI)
+```
+
+## SHALLOW HIGH MARSH
+```{r}
+#z <- (exp(-1*(ka + kd)*t))
+
+#W(t) <- (1 / (ka + kd))*((S0 * kd * (1 - (exp(-1*(ka + kd)*t)))) + (W0 * (ka + (kd * (exp(-1*(ka + kd)*t))))))
+
+lf <- obsdat2 %>% filter(exp == "WMLF")
+hf <- obsdat2 %>% filter(exp == "WMHF")
+
+kaF <- 0.2278
+kdF <- -0.0099
+S0 <- 0.98
+
+y0F <- c(0.0419, 3.0025)
+
+#LOW
+WLt <- function(t) (1 / (kaF + kdF))*((S0 * kdF * (1 - (exp(-1*(kaF + kdF)*t)))) + (y0F[1] * (kaF + (kdF * (exp(-1*(kaF + kdF)*t))))))
+
+#HIGH
+WHt <- function(t) (1 / (kaF + kdF))*((S0 * kdF * (1 - (exp(-1*(kaF + kdF)*t)))) + (y0F[2] * (kaF + (kdF * (exp(-1*(kaF + kdF)*t))))))
+
+stl <- paste0("Low [DOC]")
+yl <- (max(lf$DOC)+0.3)
+sth <- paste0("High [DOC]")
+yh <- (min(hf$DOC)+0.2)
+rsqf <- expression('RMSE = 0.577')
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+comp1 <- base + geom_function(fun = WLt, color = "red3", linetype = "dashed", size = 1.2) +
+  geom_point(data = lf, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
+  geom_function(fun = WHt, color = "salmon", linetype = "dashed", size = 1.2) +
+  geom_point(data = hf, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Fresh", tag = "(a)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "red3") +
+  annotate("text",x = 12, y = yh, label = sth, color = "salmon")+
+  annotate("text",x = 12, y = 2, label = rsqf)
+comp1
+```
+
+```{r}
+ls <- obsdat2 %>% filter(exp == "WMLS")
+hs <- obsdat2 %>% filter(exp == "WMHS")
+
+kaS <- 2.5344
+kdS <- 0.6198
+S0 <- 0.98
+
+y0S <- c(0.0721, 2.9545)
+
+#LOW
+WLt <- function(t) (1 / (kaS + kdS))*((S0 * kdS * (1 - (exp(-1*(kaS + kdS)*t)))) + (y0S[1] * (kaS + (kdS * (exp(-1*(kaS + kdS)*t))))))
+
+#HIGH
+WHt <- function(t) (1 / (kaS + kdS))*((S0 * kdS * (1 - (exp(-1*(kaS + kdS)*t)))) + (y0S[2] * (kaS + (kdS * (exp(-1*(kaS + kdS)*t))))))
+
+stl <- paste0("Low [DOC]")
+yl <- (max(ls$DOC)+0.3)
+sth <- paste0("High [DOC]")
+yh <- (min(hs$DOC)+0.3)
+rsqs <- expression('RMSE = 0.264')
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+comp2 <- base + geom_function(fun = WLt, color = "red3", linetype = "dashed", size = 1.2) +
+  geom_point(data = ls, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
+  geom_function(fun = WHt, color = "salmon", linetype = "dashed", size = 1.2) +
+  geom_point(data = hs, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Saline", tag = "(b)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "red3") +
+  annotate("text",x = 12, y = yh, label = sth, color = "salmon")+
+  annotate("text",x = 12, y = 2, label = rsqs)
+comp2
+```
+
+```{r}
+compWM <- (comp1+comp2) + 
+  plot_annotation(title = "Model and Observed DOC over Time", subtitle = "Shallow High Marsh") 
+ggsave(filename = "WMcomp_new.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "WMcomp_new.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+
+plot(compWM)
+```
+
+
+## DEEP CREEK
+```{r}
+#z <- (exp(-1*(ka + kd)*t))
+
+#W(t) <- (1 / (ka + kd))*((S0 * kd * (1 - (exp(-1*(ka + kd)*t)))) + (W0 * (ka + (kd * (exp(-1*(ka + kd)*t))))))
+
+lf <- obsdat2 %>% filter(exp == "PCLF")
+hf <- obsdat2 %>% filter(exp == "PCHF")
+
+kaF <- 3417
+kdF <- -577
+S0 <- 0.99
+  
+y0F <- c(0.1006, 3.0375)
+
+#LOW
+WLt <- function(t) (1 / (kaF + kdF))*((S0 * kdF * (1 - (exp(-1*(kaF + kdF)*t)))) + (y0F[1] * (kaF + (kdF * (exp(-1*(kaF + kdF)*t))))))
+
+#HIGH
+WHt <- function(t) (1 / (kaF + kdF))*((S0 * kdF * (1 - (exp(-1*(kaF + kdF)*t)))) + (y0F[2] * (kaF + (kdF * (exp(-1*(kaF + kdF)*t))))))
+
+stl <- paste0("Low [DOC]")
+yl <- (max(lf$DOC)+0.3)
+sth <- paste0("High [DOC]")
+yh <- (min(hf$DOC)+0.3)
+rsqf <- expression('RMSE = 0.558')
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+comp1 <- base + geom_function(fun = WLt, color = "red3", linetype = "dashed", size = 1.2) +
+  geom_point(data = lf, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
+  geom_function(fun = WHt, color = "salmon", linetype = "dashed", size = 1.2) +
+  geom_point(data = hf, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Fresh", tag = "(a)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "red3") +
+  annotate("text",x = 12, y = yh, label = sth, color = "salmon")+
+  annotate("text",x = 12, y = 2, label = rsqf)
+comp1
+```
+
+```{r}
+ls <- obsdat2 %>% filter(exp == "PCLS")
+hs <- obsdat2 %>% filter(exp == "PCHS")
+
+kaS <- 1.8086
+kdS <- 0.2278
+S0 <- 0.92
+  
+y0S <- c(0.0856, 3.1250)
+
+#LOW
+WLt <- function(t) (1 / (kaS + kdS))*((S0 * kdS * (1 - (exp(-1*(kaS + kdS)*t)))) + (y0S[1] * (kaS + (kdS * (exp(-1*(kaS + kdS)*t))))))
+
+#HIGH
+WHt <- function(t) (1 / (kaS + kdS))*((S0 * kdS * (1 - (exp(-1*(kaS + kdS)*t)))) + (y0S[2] * (kaS + (kdS * (exp(-1*(kaS + kdS)*t))))))
+
+stl <- paste0("Low [DOC]")
+yl <- (max(ls$DOC)+0.3)
+sth <- paste0("High [DOC]")
+yh <- (min(hs$DOC)+0.3)
+rsqs <- expression('RMSE = 0.237')
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+comp2 <- base + geom_function(fun = WLt, color = "red3", linetype = "dashed", size = 1.2) +
+  geom_point(data = ls, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
+  geom_function(fun = WHt, color = "salmon", linetype = "dashed", size = 1.2) +
+  geom_point(data = hs, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Saline", tag = "(b)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "red3") +
+  annotate("text",x = 12, y = yh, label = sth, color = "salmon")+
+  annotate("text",x = 12, y = 1.75, label = rsqs)
+comp2
+```
+
+```{r}
+compPC <- (comp1+comp2) + 
+  plot_annotation(title = "Model and Observed DOC over Time", subtitle = "Deep Creek") 
+ggsave(filename = "PCcomp_new.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "PCcomp_new.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+
+plot(compPC)
+```
+
+
+## DEEP INTERMEDIATE
+```{r}
+#z <- (exp(-1*(ka + kd)*t))
+
+#W(t) <- (1 / (ka + kd))*((S0 * kd * (1 - (exp(-1*(ka + kd)*t)))) + (W0 * (ka + (kd * (exp(-1*(ka + kd)*t))))))
+
+lf <- obsdat2 %>% filter(exp == "PILF")
+hf <- obsdat2 %>% filter(exp == "PIHF")
+
+kaF <- 12.5643
+kdF <- -0.7822
+S0 <- 0.99
+
+y0F <- c(0.0689, 3.1030)
+
+#LOW
+WLt <- function(t) (1 / (kaF + kdF))*((S0 * kdF * (1 - (exp(-1*(kaF + kdF)*t)))) + (y0F[1] * (kaF + (kdF * (exp(-1*(kaF + kdF)*t))))))
+
+#HIGH
+WHt <- function(t) (1 / (kaF + kdF))*((S0 * kdF * (1 - (exp(-1*(kaF + kdF)*t)))) + (y0F[2] * (kaF + (kdF * (exp(-1*(kaF + kdF)*t))))))
+
+stl <- paste0("Low [DOC]")
+yl <- (max(lf$DOC)+0.3)
+sth <- paste0("High [DOC]")
+yh <- (min(hf$DOC))
+rsqf <- expression('RMSE = 0.397')
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+comp1 <- base + geom_function(fun = WLt, color = "red3", linetype = "dashed", size = 1.2) +
+  geom_point(data = lf, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
+  geom_function(fun = WHt, color = "salmon", linetype = "dashed", size = 1.2) +
+  geom_point(data = hf, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Fresh", tag = "(a)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "red3") +
+  annotate("text",x = 12, y = yh, label = sth, color = "salmon")+
+  annotate("text",x = 12, y = 2, label = rsqf)
+comp1
+```
+
+```{r}
+ls <- obsdat2 %>% filter(exp == "PILS")
+hs <- obsdat2 %>% filter(exp == "PIHS")
+
+kaS <- 2.1486
+kdS <- 0.4654
+S0 <- 0.95
+  
+y0S <- c(0.0838, 2.9545)
+
+#LOW
+WLt <- function(t) (1 / (kaS + kdS))*((S0 * kdS * (1 - (exp(-1*(kaS + kdS)*t)))) + (y0S[1] * (kaS + (kdS * (exp(-1*(kaS + kdS)*t))))))
+
+#HIGH
+WHt <- function(t) (1 / (kaS + kdS))*((S0 * kdS * (1 - (exp(-1*(kaS + kdS)*t)))) + (y0S[2] * (kaS + (kdS * (exp(-1*(kaS + kdS)*t))))))
+
+stl <- paste0("Low [DOC]")
+yl <- (max(ls$DOC)+0.3)
+sth <- paste0("High [DOC]")
+yh <- (min(hs$DOC)+0.3)
+rsqs <- expression('RMSE = 0.130')
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+comp2 <- base + geom_function(fun = WLt, color = "red3", linetype = "dashed", size = 1.2) +
+  geom_point(data = ls, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
+  geom_function(fun = WHt, color = "salmon", linetype = "dashed", size = 1.2) +
+  geom_point(data = hs, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Saline", tag = "(b)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "red3") +
+  annotate("text",x = 12, y = yh, label = sth, color = "salmon")+
+  annotate("text",x = 12, y = 1.75, label = rsqs)
+comp2
+```
+
+```{r}
+compPI <- (comp1+comp2) + 
+  plot_annotation(title = "Model and Observed DOC over Time", subtitle = "Deep Intermediate") 
+ggsave(filename = "PIcomp_new.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "PIcomp_new.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+
+plot(compPI)
+```
+
+
+## DEEP HIGH MARSH
+```{r}
+#z <- (exp(-1*(ka + kd)*t))
+
+#W(t) <- (1 / (ka + kd))*((S0 * kd * (1 - (exp(-1*(ka + kd)*t)))) + (W0 * (ka + (kd * (exp(-1*(ka + kd)*t))))))
+
+lf <- obsdat2 %>% filter(exp == "PMLF")
+hf <- obsdat2 %>% filter(exp == "PMHF")
+
+kaF <- 39.3892
+kdF <- -5.5260
+S0 <- 0.97
+
+y0F <- c(0.0419, 3.0025)
+
+#LOW
+WLt <- function(t) (1 / (kaF + kdF))*((S0 * kdF * (1 - (exp(-1*(kaF + kdF)*t)))) + (y0F[1] * (kaF + (kdF * (exp(-1*(kaF + kdF)*t))))))
+
+#HIGH
+WHt <- function(t) (1 / (kaF + kdF))*((S0  * kdF * (1 - (exp(-1*(kaF + kdF)*t)))) + (y0F[2] * (kaF + (kdF * (exp(-1*(kaF + kdF)*t))))))
+
+stl <- paste0("Low [DOC]")
+yl <- (max(lf$DOC)+0.3)
+sth <- paste0("High [DOC]")
+yh <- (min(hf$DOC)+0.1)
+rsqf <- expression('RMSE = 0.578')
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+comp1 <- base + geom_function(fun = WLt, color = "red3", linetype = "dashed", size = 1.2) +
+  geom_point(data = lf, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
+  geom_function(fun = WHt, color = "salmon", linetype = "dashed", size = 1.2) +
+  geom_point(data = hf, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Fresh", tag = "(a)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "red3") +
+  annotate("text",x = 12, y = yh, label = sth, color = "salmon")+
+  annotate("text",x = 12, y = 2, label = rsqf)
+comp1
+```
+
+```{r}
+ls <- obsdat2 %>% filter(exp == "PMLS")
+hs <- obsdat2 %>% filter(exp == "PMHS")
+
+kaS <- 2.9383
+kdS <- 0.6731
+S0 <- 0.93
+  
+y0S <- c(0.0721, 2.9545)
+
+#LOW
+WLt <- function(t) (1 / (kaS + kdS))*((S0 * kdS * (1 - (exp(-1*(kaS + kdS)*t)))) + (y0S[1] * (kaS + (kdS * (exp(-1*(kaS + kdS)*t))))))
+
+#HIGH
+WHt <- function(t) (1 / (kaS + kdS))*((S0 * kdS * (1 - (exp(-1*(kaS + kdS)*t)))) + (y0S[2] * (kaS + (kdS * (exp(-1*(kaS + kdS)*t))))))
+
+stl <- paste0("Low [DOC]")
+yl <- (max(ls$DOC)+0.3)
+sth <- paste0("High [DOC]")
+yh <- (min(hs$DOC)+0.3)
+rsqs <- expression('RMSE = 0.263')
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+comp2 <- base + geom_function(fun = WLt, color = "red3", linetype = "dashed", size = 1.2) +
+  geom_point(data = ls, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
+  geom_function(fun = WHt, color = "salmon", linetype = "dashed", size = 1.2) +
+  geom_point(data = hs, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Saline", tag = "(b)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "red3") +
+  annotate("text",x = 12, y = yh, label = sth, color = "salmon")+
+  annotate("text",x = 12, y = 1.75, label = rsqf)
+comp2
+```
+
+```{r}
+compPM <- (comp1+comp2) + 
+  plot_annotation(title = "Model and Observed DOC over Time", subtitle = "Deep High Marsh") 
+ggsave(filename = "PMcomp_new.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "PMcomp_new.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+
+plot(compPM)
+```
+
+### Clean Up
+```{r}
+rm(list = ls())  # Clean up
+#ctrl+l clears the console
+
+```
