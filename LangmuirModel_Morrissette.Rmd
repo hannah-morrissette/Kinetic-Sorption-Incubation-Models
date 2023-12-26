@@ -1,0 +1,575 @@
+---
+title: "Langmuir Model"
+author: "Hannah Morrissette"
+date: "26 Dec 2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Logistic Setup
+
+## Package dependencies
+
+```{r}
+library(deSolve)
+library("FME")
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(tidyverse)
+library(modelr)
+
+```
+
+# Model structure
+
+## Parameter names & Equations 
+
+### Change in mass over time (mg/hr)
+- dDOC = change in DOC mass in solution over time
+- dCs  = change in sorbed organic carbon mass over time
+
+### Rate parameters (hr-1)
+- kdes = desorption rate
+- kads = adsorption rate
+
+### State Variables (mg)
+- Cs = mass of organic carbon sorbed on soils
+- DOC = mass of DOC free in solution
+
+### Saturation coefficient (mg)
+- S <- Qmax - Cs 
+
+### First order ODEs 
+- dDOC <- kdes * Cs - (kads2 * DOC * S) #del mass of DOC in solution
+- dCs <- (kads2 * DOC * S) - kdes * Cs #del mass of DOC on 
+
+- where kads2 is a second-order rate constant with units of mg-1 hr-1, and the adsorption terms were multiplied by the saturation coefficient (S; mg)
+
+### ID names
+- JB__ or TA__ = kinetic experiments
+  - JB = Jug Bay
+  - TA = Taskinas
+- W___ or P___ = spatial kinetic experiments
+  - W = shallow, P = deep
+  - C = creek edge, I = intermediate site, M = high marsh
+- __HF, __HS, __LF, __LS = scenario
+  - HF = High initial [DOC], Fresh
+  - HS = High initial [DOC], Saline
+  - LF = Low initial [DOC], Fresh
+  - LS = Low initial [DOC], Saline
+- 1-7 = time points
+  - 1 = 0 min, 2 = 10 min, 3 = 15 min, 4 = 1 hr, 5 = 6 hr, 6 = 12 hr, 7 = 24 hr
+
+
+## Compartment Model 
+
+### List the two state variable ODEs
+```{r}
+sat_twocomp <- function (time, y, parms, ...) {
+   with(as.list(c(parms, y)), {
+   S <- qm - Cs
+   dDOC <- kdes*Cs - ((kads*DOC*S)/m) #del mass of DOC in solution
+   dCs <- ((kads*DOC*S)/m) - kdes*Cs #del mass of DOC on sediment
+   list(c(dDOC, dCs))})}
+#include S in the list if I want to see the output
+
+```
+
+# Data organization
+
+## Time
+- Time will always stay the same 7 values: 0, 0.17, 0.25, 1, 6, 12, 24
+- hours
+- added +0.05 to each time point so that the time0 would represent the 3minutes 
+
+## Observed values
+- Only have measured observed values for DOC 
+- These will change with every scenario -- need to input these data
+
+## Initial Values for model
+- Two y0 values for DOC, Cs
+- These will change with every scenario -- need to input these data
+- Rate parameter k's might change but the first guess could be the same for each
+
+### Using dplyr to manipulate the data
+- Try to use .csv as default file formats
+- Try not to have spaces or unconventional characters in title names
+- Remember that initial values must be in  the same order as the ODE order (Use %>% select())
+- data.frame <- as.numeric changes data to vector
+- Use str() to compare the data types 
+
+## Read in time, y0, and obs values
+```{r}
+
+time_pts <- c(0.05, 0.22, 0.30, 1.05, 6.05, 12.05, 24.05)
+#adding in inoculation to incubation start time (3 min = 0.05hrs)
+
+y0df <- read.csv("Langmuir_y0_input.csv")
+
+#adding y0 values as t0 values in observed 
+zero <- rep(0, 32) #creates a vector of zeros 32 spaces long
+t0dat <- y0df[,1:2] #takes columns 1-2 of y0df and makes new dataframe
+t0dat["time"] <- zero #adds the vector of zeros to a new column named "time"
+t0dat <- t0dat[ , c(1, 3, 2)] #puts the time column first
+#this is all to match up to dat2 in lapply code
+
+obs <- read.csv("Langmuir_Obs_input.csv")
+obs2 <- obs %>% separate(X, c("exp", "time"), 4)
+
+qvars <- read.csv("Langmuir_Qmax_input.csv")
+qmax <- qvars[ ,1:2]
+sedm <- qvars[ ,c(1,3)]
+
+conc <- read.csv("Langmuir_Cs_input.csv")
+conc2 <- conc %>% separate(X, c("exp", "time"), 4)
+sedsum <- conc2[,c(1,2,6)]
+
+rates <- read.csv("Langmuir_Rates_input.csv")
+rates <- rates[, c(5,1:4)]
+sites <- data.frame(rates[,1])
+
+statistics <- read.csv("Langmuir_Stats_input.csv")
+
+```
+
+## Use dplyr and tidyr to select the observational data for the experiment
+### Examples
+
+- JHF <- y0df %>% filter(X == "JBHF")
+- obs2 <- obs %>% separate(X, c("exp", "time"), 4) -- breaks one column into two at the fourth character
+- JHF <- obs2 %>% filter(exp == "JBHF")
+- obs3 <- obs2 %>% mutate(time = c(0,0.17,0.25,1,6,12,24)) -- adds time to data frame if it wasn't already there
+
+
+# Cost Function 
+```{r}
+
+cost <- function(p, dat, times_out, model, initial) {
+  out <- ode(initial, times_out, model, p, method = "bdf")
+  #out <- ode(initial, times_out, model, p)
+  modCost(out, dat, weight = "none")} # try weight = "std" or "mean"
+
+```
+
+# Run the Model
+```{r}
+
+ans <- lapply(1:nrow(y0df), function(x){    #do all rows
+#ans <- lapply(c(10:32), function(x){          #try some
+#site = "JBLF"                                #try just one site 
+site <- as.character(y0df$X[x])             #comment out if using just one site
+  print(site)
+  
+  dat <- obs2 %>% filter(exp == site) %>% mutate(time = time_pts)
+  #print(dat)
+  
+  # qmax2 <- qmax %>% filter(exp == site)
+  # qmax3 <- qmax2[,2]
+  # sedm2 <- sedm %>% filter(exp == site)
+  # sedm3 <- sedm2[,2]
+  # 
+  parms <- rates %>% filter(as.character(X) == site)
+  parms <- parms[ ,-1]
+  #parms <- parms %>% mutate(qm = qmax3) %>% mutate(m = sedm3)
+  parms <- unlist(parms)
+ #parms <- c(kdes = 0.77, kads = 2.64, qm = qmax3, m = sedm3) #guess at rates and value for qm & m - the constants for each time point
+  #print(parms)
+ 
+  
+  times <- seq(0, 24, length=1000)
+  #maxtime = 24 
+  #timestep = 1e-3
+  #times <-c(0, maxtime-timestep, maxtime) #still calculates every time step but it only prints out the three values (space saver)
+  
+  y0 <- y0df %>% filter(X == site) # filter out from y0 master
+  y0 <- data.matrix(y0) #makes the data frame a numeric
+  y0 <- y0[,-1] #get rid of X label column
+  #print(y0)
+ 
+  dat2 <- dat %>% select(time, DOC) #take out the specifically named columns
+  t0 <- t0dat %>% filter(X == site)
+  t02 <- t0 %>% select(time, DOC)
+  dat3 <- rbind(t02,dat2) #adds the y0 values from that scenario as the true t0 values
+
+  if (site == "PMHF") {
+    dat4 <- dat3[-3,]
+  } else if (site == "JBHF" || site == "PCLF" || site == "PCLS" || site == "WIHF" || site == "PIHF") {
+    dat4 <- dat3[-c(2:3),]
+  } else if (site == "PCHF") {
+    dat4 <- dat3[-2,]
+  } else if (site == "TAHS" || site == "PCHS" || site == "WCHF" || site == "WCHS" || site == "WMHF" || site == "WMHS" || site == "WMLF" || site == "WMLS" || site == "JBHS" || site == "JBLF" || site == "WCLF" || site == "PIHS" || site == "PILF" || site == "PILS" || site == "PMLF" || site == "PMLS" || site == "TAHF" || site == "TALF" || site == "TALS" || site == "WILF" || site == "WILS" || site == "JBLS") {
+    dat4 <- dat3[-c(2:4),]
+  } else if (site == "PMHS") {
+    dat4 <- dat3[-c(4:6),]
+  } else if (site == "WIHS") {
+    dat4 <- dat3[-c(4:5),] 
+  } else if (site == "WCLS") {
+    dat4 <- dat3[-c(2,5),]
+  }
+  
+  
+  fit <- modFit(f = cost, p = parms, dat = dat4, times_out = times, model = sat_twocomp, initial = y0,lower = rep(0,4), upper = rep(1000000,4))
+  #assigning a lower boundary of 0 to all 4 parameters
+ 
+  summary(fit)
+  
+  par = data.frame(as.list(fit$par)) %>% mutate(X = site)   
+  
+  #rm(fit)
+  
+}) #comment out if using just one site
+
+twoc_sat_all_ans <- bind_rows(ans) #binds all the rows into one data.frame that can be saved to csv
+  #comment out if using just one site
+twoc_sat_all_ans2 <- twoc_sat_all_ans %>% mutate(m = sedm$sedmass.mg)
+twoc_sat_all_ans3 <- twoc_sat_all_ans2 %>% mutate(kads.hr = (kads*m))
+write.csv(twoc_sat_all_ans, "Langmuir_Rates_output.csv", row.names = FALSE)
+
+
+```
+
+```{r}
+#new lapply for ode with new time points
+
+sat_comp <- lapply(1:nrow(y0df), function(x){    #do all rows
+#sat_comp <- lapply(c(29:32), function(x){          #try some
+#site = "JBLF"                                #try just one site 
+site <- as.character(y0df$X[x])
+print(site)
+
+  # qmax2 <- qmax %>% filter(exp == site)
+  #   qmax3 <- qmax2[,2]
+  #   sedm2 <- sedm %>% filter(exp == site)
+  #   sedm3 <- sedm2[,2]
+  
+   parms <- rates %>% filter(as.character(X) == site)
+   parms <- parms[ ,-1]   
+   #parms <- parms %>% mutate(qm = qmax3) %>% mutate(m = sedm3)
+   parms <- unlist(parms)
+ #parms <- c(kdes = 1.0502, kads = 1.49e-5, qm = 1e6, m = 4.091) #guess at rates and value for qm & m - the constants for each time point
+
+dat <- obs2 %>% filter(exp == site) %>% mutate(time = time_pts)
+
+times <- seq(0, 24.05, by = 0.01)
+
+
+y0 <- y0df %>% filter(X == site) # filter out from y0 master
+  y0 <- data.matrix(y0) #makes the data frame a numeric
+  y0 <- y0[,-1] #get rid of X label column
+  #print(y0)
+ 
+dat2 <- dat %>% select(time, DOC) #take out the specifically named columns
+  t0 <- t0dat %>% filter(X == site)
+  t02 <- t0 %>% select(time, DOC)
+dat3 <- rbind(t02,dat2) #adds the y0 values from that scenario as the true t0 values
+
+  if (site == "PMHF") {
+    dat4 <- dat3[-3,]
+  } else if (site == "JBHF" || site == "PCLF" || site == "PCLS" || site == "WIHF" || site == "PIHF") {
+    dat4 <- dat3[-c(2:3),]
+  } else if (site == "PCHF") {
+    dat4 <- dat3[-2,]
+  } else if (site == "TAHS" || site == "PCHS" || site == "WCHF" || site == "WCHS" || site == "WMHF" || site == "WMHS" || site == "WMLF" || site == "WMLS" || site == "JBHS" || site == "JBLF" || site == "WCLF" || site == "PIHS" || site == "PILF" || site == "PILS" || site == "PMLF" || site == "PMLS" || site == "TAHF" || site == "TALF" || site == "TALS" || site == "WILF" || site == "WILS" || site == "JBLS") {
+    dat4 <- dat3[-c(2:4),]
+  } else if (site == "PMHS") {
+    dat4 <- dat3[-c(4:6),]
+  } else if (site == "WIHS") {
+    dat4 <- dat3[-c(4:5),] 
+  } else if (site == "WCLS") {
+    dat4 <- dat3[-c(2,5),]
+  }
+  
+out1 <- ode(y0, times, sat_twocomp, parms)
+#plot(out1, obs=dat3) #uncomment to compare model to data on graph
+
+#ode_output <- data.frame(out1) %>% mutate(X = site) 
+
+out1_df <- data.frame(out1)
+
+statlabel <- statistics %>% filter(X == site)
+#statlabel <- stats_out #if you only have one site tested from the stats lapply 
+RMSE <- round(statlabel[,2], digits = 3)
+MEF <- round(statlabel[,4], digits = 3)
+ylabel <- max(dat3$DOC)
+
+st <- paste0("RMSE = ",RMSE, ", MEF = ",MEF)
+#\n breaks it into a different line -> "\n MEF = "
+
+#st <- c(expression("test \n"), expression("r"^"2"))
+#center aligns with things that need expressions
+
+ggplot(out1_df) +
+  geom_line(aes(time, DOC), color = "darkseagreen", linetype = "dotdash", linewidth = 1.2) +
+  geom_point(data = dat4, aes(time, DOC)) +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Model and Observed DOC over Time", subtitle = paste(site)) +
+  annotate("text",x = 12, y = ylabel, label = st)
+#annotate is better than geom_text - puts as many texts on as points
+
+ggsave(filename=paste(site,"lang",".png",sep=""))
+ggsave(filename=paste(site,"lang",".tiff",sep=""))
+
+# if (site == "JBHF" || site == "TAHF" || site == "WCHF" || site == "WIHF" || site == "WMHF" || site == "PCHF" || site == "PIHF" || site == "PMHF") {
+#   ylabel <- max(dat4$DOC)
+#   
+#   comp1 <- ggplot(out1_df) +
+#   geom_line(aes(time, DOC), color = "darkseagreen", size = 1.2) +
+#   geom_point(data = dat4, aes(time, DOC)) +
+#   theme_minimal() +
+#   labs(x = "Time (hrs)", y = "DOC (mg)", title = site, tag = "(a)") +
+#   annotate("text",x = 12, y = ylabel, label = st)
+# #annotate is better than geom_text - puts as many texts on as points
+#   assign("comp1",comp1,envir = .GlobalEnv)
+#   
+# } else if (site == "JBHS" || site == "TAHS" || site == "WCHS" || site == "WIHS" || site == "WMHS" || site == "PCHS" || site == "PIHS" || site == "PMHS") {
+#   ylabel <- max(dat4$DOC)
+#   
+#   comp2 <- ggplot(out1_df) +
+#   geom_line(aes(time, DOC), color = "darkseagreen", size = 1.2) +
+#   geom_point(data = dat4, aes(time, DOC)) +
+#   theme_minimal() +
+#   labs(x = "Time (hrs)", y = "DOC (mg)", title = site, tag = "(b)") +
+#   annotate("text",x = 12, y = ylabel, label = st)
+# #annotate is better than geom_text - puts as many texts on as points
+#   assign("comp2",comp2,envir = .GlobalEnv)
+#   
+# } else if (site == "JBLF" || site == "TALF" || site == "WCLF" || site == "WILF" || site == "WMLF" || site == "PCLF" || site == "PILF" || site == "PMLF") {
+#   ylabel <- min(dat4$DOC)
+#   
+#   comp3 <- ggplot(out1_df) +
+#   geom_line(aes(time, DOC), color = "darkseagreen", size = 1.2) +
+#   geom_point(data = dat4, aes(time, DOC)) +
+#   theme_minimal() +
+#   labs(x = "Time (hrs)", y = "DOC (mg)", title = site, tag = "(c)") +
+#   annotate("text",x = 12, y = ylabel, label = st)
+# #annotate is better than geom_text - puts as many texts on as points
+#   assign("comp3",comp3,envir = .GlobalEnv)
+#   
+# } else if (site == "JBLS" || site == "TALS" || site == "WCLS" || site == "WILS" || site == "WMLS" || site == "PCLS" || site == "PILS" || site == "PMLS") {
+#   ylabel <- min(dat4$DOC)
+#   
+#   comp4 <- ggplot(out1_df) +
+#   geom_line(aes(time, DOC), color = "darkseagreen", size = 1.2) +
+#   geom_point(data = dat4, aes(time, DOC)) +
+#   theme_minimal() +
+#   labs(x = "Time (hrs)", y = "DOC (mg)", title = site, tag = "(d)") +
+#   annotate("text",x = 12, y = ylabel, label = st)
+# #annotate is better than geom_text - puts as many texts on as points
+#   assign("comp4",comp4,envir = .GlobalEnv)
+# }
+# # comp1 <- ggplot(out1_df) +
+#   geom_line(aes(time, DOC), color = "darkseagreen", size = 1.2) +
+#   geom_point(data = dat4, aes(time, DOC)) +
+#   theme_minimal() +
+#   labs(x = "Time (hrs)", y = "DOC (mg)", title = "Model and Observed DOC over Time", subtitle = site, tag = tag) +
+#   annotate("text",x = 12, y = ylabel, label = st)
+# #annotate is better than geom_text - puts as many texts on as points
+
+# ggsave(filename=paste(site,"tag",".png",sep=""), width = 7.5, height = 7.5, units = "in")
+# ggsave(filename=paste(site,"tag",".tiff",sep=""), width = 7.5, height = 7.5, units = "in")
+
+comp_out <- left_join(dat4, out1_df, by = "time")
+comp_out <- data.frame(comp_out) %>% mutate(X = site)
+#x = observed, y = out1 data -- pulled to match by time points
+
+
+
+}) #comment out if using just one site
+
+all_sat_odeoutput <- bind_rows(sat_comp) #binds all the rows into one data.frame that can be saved to csv
+  #comment out if using just one site
+write.csv(all_sat_odeoutput, "Langmuir_ODE_output.csv", row.names = FALSE)
+```
+
+### comp graphs
+```{r}
+satcompJB <- ((comp1+comp2) / (comp3+comp4)) + 
+  plot_annotation(title = "Model and Observed DOC over Time") 
+ggsave(filename = "JBtag.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "JBtag.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+
+satcompTA <- ((comp1+comp2) / (comp3+comp4)) + 
+  plot_annotation(title = "Model and Observed DOC over Time") 
+ggsave(filename = "TAtag.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "TAtag.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+
+satcompWC <- ((comp1+comp2) / (comp3+comp4)) + 
+  plot_annotation(title = "Model and Observed DOC over Time") 
+ggsave(filename = "WCtag.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "WCtag.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+
+satcompWI <- ((comp1+comp2) / (comp3+comp4)) + 
+  plot_annotation(title = "Model and Observed DOC over Time") 
+ggsave(filename = "WItag.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "WItag.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+
+satcompWM <- ((comp1+comp2) / (comp3+comp4)) + 
+  plot_annotation(title = "Model and Observed DOC over Time") 
+ggsave(filename = "WMtag.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "WMtag.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+
+satcompPC <- ((comp1+comp2) / (comp3+comp4)) + 
+  plot_annotation(title = "Model and Observed DOC over Time") 
+ggsave(filename = "PCtag.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "PCtag.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+
+satcompPI <- ((comp1+comp2) / (comp3+comp4)) + 
+  plot_annotation(title = "Model and Observed DOC over Time") 
+ggsave(filename = "PItag.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "PItag.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+
+satcompPM <- ((comp1+comp2) / (comp3+comp4)) + 
+  plot_annotation(title = "Model and Observed DOC over Time") 
+ggsave(filename = "PMtag.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "PMtag.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+
+
+```
+
+
+```{r}
+#ode again, but saving all the model output to compare with other models
+
+model_sat <- lapply(1:nrow(y0df), function(x){    #do all rows
+#comp <- lapply(c(10:32), function(x){          #try some
+#site = "TAHS"                                #try just one site 
+site <- as.character(y0df$X[x])   
+
+# qmax2 <- qmax %>% filter(exp == site)
+#   qmax3 <- qmax2[,2]
+#   sedm2 <- sedm %>% filter(exp == site)
+#   sedm3 <- sedm2[,2]
+  
+parms <- rates %>% filter(as.character(X) == site)
+   parms <- parms[ ,-1]   
+   #parms <- parms %>% mutate(qm = qmax3) %>% mutate(m = sedm3)
+   parms <- unlist(parms)
+ #parms <- c(kdes = 3.611e-2, kads = 1.65, qm = qmax2, m = sedm2) #guess at rates and value for qm & m - the constants for each time point
+
+
+dat <- obs2 %>% filter(exp == site) %>% mutate(time = time_pts)
+
+times <- seq(0, 24.05, by = 0.01)
+
+y0 <- y0df %>% filter(X == site) # filter out from y0 master
+  y0 <- data.matrix(y0) #makes the data frame a numeric
+  y0 <- y0[,-1] #get rid of X label column
+  #print(y0)
+ 
+dat2 <- dat %>% select(time, DOC) #take out the specifically named columns
+  t0 <- t0dat %>% filter(X == site)
+  t02 <- t0 %>% select(time, DOC)
+dat3 <- rbind(t02,dat2) #adds the y0 values from that scenario as the true t0 values
+
+  if (site == "PMHF") {
+    dat4 <- dat3[-3,]
+  } else if (site == "JBHF" || site == "PCLF" || site == "PCLS" || site == "WIHF" || site == "PIHF") {
+    dat4 <- dat3[-c(2:3),]
+  } else if (site == "PCHF") {
+    dat4 <- dat3[-2,]
+  } else if (site == "TAHS" || site == "PCHS" || site == "WCHF" || site == "WCHS" || site == "WMHF" || site == "WMHS" || site == "WMLF" || site == "WMLS" || site == "JBHS" || site == "JBLF" || site == "WCLF" || site == "PIHS" || site == "PILF" || site == "PILS" || site == "PMLF" || site == "PMLS" || site == "TAHF" || site == "TALF" || site == "TALS" || site == "WILF" || site == "WILS" || site == "JBLS") {
+    dat4 <- dat3[-c(2:4),]
+  } else if (site == "PMHS") {
+    dat4 <- dat3[-c(4:6),]
+  } else if (site == "WIHS") {
+    dat4 <- dat3[-c(4:5),] 
+  } else if (site == "WCLS") {
+    dat4 <- dat3[-c(2,5),]
+  }
+
+out1 <- ode(y0, times, sat_twocomp, parms)
+#plot(out1, obs=dat3) #uncomment to compare model to data on graph
+
+out1_df <- data.frame(out1) %>% mutate(X = site)
+
+
+}) #comment out if using just one site
+
+all_modoutput <- bind_rows(model_sat) #binds all the rows into one data.frame that can be saved to csv
+  #comment out if using just one site
+write.csv(all_modoutput, "Langmuir_Model_output.csv", row.names = FALSE)
+```
+
+
+```{r}
+#compare output to data 
+
+sat_stats <- lapply(1:nrow(sites), function(x){    #do all rows
+#ans <- lapply(c(10:32), function(x){          #try some
+#site = "PMHS"                                #try just one site 
+site <- as.character(sites$rates...1.[x])  
+
+ode_out <- all_sat_odeoutput %>% filter(X == site)
+ #x = observed, y = out1 data -- pulled to match by time points
+ ode_out <- ode_out[-2,]
+ #pull out the second row because it doesn't capture the peak in the data
+
+#ode_out <- comp_out
+#if you just have one site from above to use instead of all_sat_odeoutput
+
+model <- ode_out$DOC.y
+observed <- ode_out$DOC.x
+
+#MEF - modeling efficiency
+obsaverage <- mean(ode_out$DOC.x)
+obsdiffer <- ode_out %>% mutate(obsdiff = DOC.x - obsaverage)
+obssquare <- obsdiffer %>% mutate(obssq = (obsdiff*obsdiff))
+obssum <- sum(obssquare$obssq)
+Pdifference <- ode_out %>% mutate(Pdiff = DOC.y - DOC.x)
+Psquare <- Pdifference %>% mutate(Psq = (Pdiff*Pdiff))
+Psum <- sum(Psquare$Psq)
+MEF <- (obssum - Psum)/(obssum)
+MEF <- data.frame(MEF) %>% mutate(X = site)
+
+#MEF <- MEF(comp_out$DOC.y, comp_out$DOC.x)
+#MEF(prediction,observation)#
+
+#RMSE - root mean square error
+diff <- ode_out %>% mutate(difference = DOC.y - DOC.x)
+squ <- diff %>% mutate(square = (difference^2))
+add <- sum(squ$square)
+div <- add/7
+RMSE <- sqrt(div)
+RMSE <- data.frame(RMSE) %>% mutate(X = site)
+RMSE <- RMSE[,c(2,1)]
+
+#RMSE <- rmse(ode_out$DOC.x, ode_out$DOC.y)
+#rmse(actual, predicted)
+#using mutate, I can calculate the comparisons and different stats
+
+#AAE - average absolute error
+differ <- ode_out %>% mutate(difference = DOC.y - DOC.x)
+absval <- differ %>% mutate(absolutevalue = abs(difference))
+sigma <- sum(absval$absolutevalue)
+AAE <- sigma/7
+AAE <- data.frame(AAE) %>% mutate(X = site)
+
+#MAE <- mae(ode_out$DOC.x, ode_out$DOC.y)
+#mae(actual, predicted)
+
+SpCorr <- cor(ode_out$DOC.x, ode_out$DOC.y, method = "spearman")
+SpCorr <- data.frame(SpCorr) %>% mutate(X = site)
+
+stats1 <- left_join(RMSE, AAE, by = "X")
+stats2 <- left_join(stats1, MEF, by = "X")
+stats_out <- left_join(stats2, SpCorr, by = "X")
+
+})
+
+all_sat_statoutput <- bind_rows(sat_stats) #binds all the rows into one data.frame that can be saved to csv
+  #comment out if using just one site
+write.csv(all_sat_statoutput, "Langmuir_Stats_output.csv", row.names = FALSE)
+
+
+```
+
+```{r}
+rm(list = ls())  # Clean up
+#ctl++ --zoom out
+#ctl+- --zoom in
+
+```
