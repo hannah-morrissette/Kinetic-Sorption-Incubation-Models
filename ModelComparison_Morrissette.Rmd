@@ -1,0 +1,229 @@
+---
+title: "Kinetic Model Comparisons"
+author: "Hannah Morrissette"
+date: "26 Dec 2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Model Comparisons
+
+### Three models:
+- simple model (Linear)
+- time dependent rates in simple model (TDep)
+- saturated model (Langmuir)
+
+```{r}
+library(ggplot2)
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(patchwork)
+```
+
+
+### This file brings in the ode outputs from each model and graphs them together
+
+```{r}
+#read in data
+simp_mod <- read.csv("Linear_Comp_input.csv")
+sat_mod <- read.csv("Langmuir_Comp_input.csv")
+td_mod <- read.csv("TDep_Comp_input.csv")
+td_mod <- td_mod[1:7712,]
+
+time_pts <- c(0.05, 0.22, 0.30, 1.05, 6.05, 12.05, 24.05)
+
+y0df <- read.csv("ModComp_y0_input.csv")
+zero <- rep(0, 32) #creates a vector of zeros 32 spaces long
+t0dat <- y0df[,1:2] #takes columns 1-2 of y0df and makes new dataframe
+t0dat["time"] <- zero #adds the vector of zeros to a new column named "time"
+t0dat <- t0dat[ , c(1, 3, 2)] #puts the time column first
+
+obs <- obs <- read.csv("DOC0_Obs.csv")
+obs2 <- obs %>% separate(site, c("exp", "timepoint"), 4)
+
+stats <- read.csv("RMSE_Comp_input.csv")
+
+site_names <- read.csv("SiteNames_Comp_input.csv")
+
+```
+
+
+```{r}
+#organize data
+
+#Run 4 at a time to go with the graphs in the section below
+
+#modelcomp <- lapply(1:nrow(site_names), function(x){ 
+modelcomp <- lapply(c(29:32), function(x){   
+  site <- as.character(site_names$Sample[x])
+ #site <- "WILS"
+  print(site)
+
+  simp <- simp_mod %>% filter(X == site)
+  sat <- sat_mod %>% filter(X == site)
+  td <- td_mod %>% filter(X == site)
+  
+  graphdat <- rbind(sat, simp, td)
+
+  dat <- obs2 %>% filter(exp == site)
+
+  dat2 <- dat %>% select(time, DOC) #take out the specifically named columns
+    t0 <- t0dat %>% filter(X == site)
+    t02 <- t0 %>% select(time, DOC)
+  dat3 <- rbind(t02,dat2) #adds the y0 values from that scenario as the true t0 values
+  
+  statlabel <- stats %>% filter(X == site)
+  
+  RMSE_simp <- round(statlabel[,2], digits = 3)
+  RMSE_sat <- round(statlabel[,3], digits = 3)
+  RMSE_td <- round(statlabel[,5], digits = 3)
+
+  # MEF_simp <- round(statlabel_simp[,4], digits = 3)
+  # MEF_td <- round(statlabel_td[,4], digits = 3)
+  # MEF_sat <- round(statlabel_sat[,4], digits = 3)
+  # 
+  # simp2 <- simp %>% separate(X, c("place", "exp"), 2)
+  # simp3 <- simp2 %>% separate(exp, c("doc", "sal"), 1)
+  # doclevel <- simp3$doc[1] 
+
+  # if (doclevel == "H") {
+  # ylabel <- max(dat3$DOC) - 0.5
+  # } else if (doclevel == "L") {
+  # ylabel <- min(dat3$DOC) + 0.1
+  # }
+   
+  #ylabel <- mean(dat3$DOC)
+  #st <- paste0("RMSE: lin = ",RMSE_simp, ", lang = ",RMSE_sat, ", td = ",RMSE_td)
+  Fst <- paste0("Fresh RMSE: linear = ",RMSE_simp, ", \nLangmuir = ",RMSE_sat, ", time-dep = ",RMSE_td)
+  Sst <- paste0("Saline RMSE: linear = ",RMSE_simp, ", \nLangmuir = ",RMSE_sat, ", time-dep = ",RMSE_td)
+  
+  # mc <- ggplot(graphdat) +
+  #   geom_line(aes(time, DOC, color = type, linetype = type), size = 1.2) +
+  #   geom_point(data = dat3, aes(time, DOC), size = 2) +
+  #   theme_minimal() +
+  #   scale_color_brewer(palette = "Set2") +
+  #   labs(x = "Time (hrs)", y = "Solution DOC (mg)", title = "Model Comparison", subtitle = site, color = "Model", linetype = "Model") +
+  #   annotate("text",x = 12, y = ylabel, label = st)
+  # plot(mc)
+  #   
+  # ggsave(filename=paste(site,"modelcomp_redfinal",".png",sep=""))
+  # ggsave(filename=paste(site,"modelcomp_redfinal",".tiff",sep=""))
+  
+  if (site == "JBHF" || site == "TAHF" || site == "WCHF" || site == "WIHF" || site == "WMHF" || site == "PCHF" || site == "PIHF" || site == "PMHF") {
+
+  comp1 <- ggplot(graphdat) +
+  geom_line(aes(time, DOC, color = type, linetype = type), size = 1.2) +
+    geom_point(data = dat3, aes(time, DOC), size = 2) +
+    theme_minimal() +
+    scale_color_brewer(palette = "Set2") +
+    labs(x = NULL, y = "DOC (mg)", title = site, tag = "(a)", caption = Fst) +
+    theme(legend.position = "bottom",
+          legend.title = element_blank())
+  assign("comp1",comp1,envir = .GlobalEnv)
+  
+} else if (site == "JBHS" || site == "TAHS" || site == "WCHS" || site == "WIHS" || site == "WMHS" || site == "PCHS" || site == "PIHS" || site == "PMHS") {
+
+  comp2 <- ggplot(graphdat) +
+  geom_line(aes(time, DOC, color = type, linetype = type), size = 1.2) +
+    geom_point(data = dat3, aes(time, DOC), size = 2) +
+    theme_minimal() +
+    scale_color_brewer(palette = "Set2") +
+    labs(x = NULL, y = NULL, title = site, tag = "(b)", caption = Sst) +
+    theme(legend.position = "bottom",
+          legend.title = element_blank())
+  assign("comp2",comp2,envir = .GlobalEnv)
+  
+} else if (site == "JBLF" || site == "TALF" || site == "WCLF" || site == "WILF" || site == "WMLF" || site == "PCLF" || site == "PILF" || site == "PMLF") {
+  ylabel <- min(dat3$DOC) + 0.1
+  
+  comp3 <- ggplot(graphdat) +
+  geom_line(aes(time, DOC, color = type, linetype = type), size = 1.2) +
+    geom_point(data = dat3, aes(time, DOC), size = 2) +
+    theme_minimal() +
+    scale_color_brewer(palette = "Set2") +
+    labs(x = "Time (hrs)", y = "DOC (mg)", title = site, tag = "(c)") +
+    theme(legend.position = "none")
+  assign("comp3",comp3,envir = .GlobalEnv)
+  
+} else if (site == "JBLS" || site == "TALS" || site == "WCLS" || site == "WILS" || site == "WMLS" || site == "PCLS" || site == "PILS" || site == "PMLS") {
+  ylabel <- min(dat3$DOC) + 0.1
+  
+  comp4 <- ggplot(graphdat) +
+  geom_line(aes(time, DOC, color = type, linetype = type), size = 1.2) +
+    geom_point(data = dat3, aes(time, DOC), size = 2) +
+    theme_minimal() +
+    scale_color_brewer(palette = "Set2") +
+    labs(x = "Time (hrs)", y = NULL, title = site, tag = "(d)") +
+    theme(legend.position = "none")
+  assign("comp4",comp4,envir = .GlobalEnv)
+}
+
+
+})
+```
+
+
+```{r}
+modcompJB <- ((comp1+comp2) / (comp3+comp4)) + 
+  plot_annotation(title = "Model Comparison of DOC over Time") 
+ggsave(filename = "JBmodcomp.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "JBmodcomp.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+plot(modcompJB)
+
+modcompTA <- ((comp1+comp2) / (comp3+comp4)) + 
+  plot_annotation(title = "Model Comparison of DOC over Time") 
+ggsave(filename = "TAmodcomp.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "TAmodcomp.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+plot(modcompTA)
+
+modcompWC <- ((comp1+comp2) / (comp3+comp4)) + 
+  plot_annotation(title = "Model Comparison of DOC over Time") 
+ggsave(filename = "WCmodcomp.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "WCmodcomp.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+plot(modcompWC)
+
+modcompWI <- ((comp1+comp2) / (comp3+comp4)) + 
+  plot_annotation(title = "Model Comparison of DOC over Time") 
+ggsave(filename = "WImodcomp.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "WImodcomp.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+plot(modcompWI)
+
+modcompWM <- ((comp1+comp2) / (comp3+comp4)) + 
+  plot_annotation(title = "Model Comparison of DOC over Time") 
+ggsave(filename = "WMmodcomp.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "WMmodcomp.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+plot(modcompWM)
+
+modcompPC <- ((comp1+comp2) / (comp3+comp4)) + 
+  plot_annotation(title = "Model Comparison of DOC over Time") 
+ggsave(filename = "PCmodcomp.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "PCmodcomp.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+plot(modcompPC)
+
+modcompPI <- ((comp1+comp2) / (comp3+comp4)) + 
+  plot_annotation(title = "Model Comparison of DOC over Time") 
+ggsave(filename = "PImodcomp.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "PImodcomp.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+plot(modcompPI)
+
+modcompPM <- ((comp1+comp2) / (comp3+comp4)) + 
+  plot_annotation(title = "Model Comparison of DOC over Time") 
+ggsave(filename = "PMmodcomp.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "PMmodcomp.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+plot(modcompPM)
+
+```
+
+
+
+```{r}
+rm(list = ls())  # Clean up
+#ctl++ --zoom out
+#ctl+- --zoom in
+
+```
