@@ -220,6 +220,82 @@ plot(modcompPM)
 ```
 
 
+## Isotherm vs. Kinetic Comparisons
+
+### 
+
+```{r}
+# Langmuir isotherm eq: dDOC = [(Qmax*K*DOCf)/(1+(K*DOCf)) - C0]
+
+zvals <- read.csv("lang.zvals.csv")
+kvals <- read.csv("kin.fvals.csv")
+DOCf <- 0:319
+
+#JBF
+zvals.site.jbf <- filter(zvals, exp == "JBF")
+kvals.site.jbf <- filter(kvals, exp == "JBF")
+Qmax.jbf = zvals.site.jbf[,2]
+K.jbf = zvals.site.jbf[,3]
+C0.jbf = zvals.site.jbf[,4]
+
+dDOC.jbf = ((Qmax.jbf*K.jbf*DOCf)/(1+(K.jbf*DOCf)) - C0.jbf)
+jbf <- data.frame(exp = rep("JBF",320)) %>% mutate(
+                  DOCf = 0:319,
+                  dDOC = dDOC.jbf)
+
+#JBS
+zvals.site.jbs <- filter(zvals, exp == "JBS")
+kvals.site.jbs <- filter(kvals, exp == "JBS")
+Qmax.jbs = zvals.site.jbs[,2]
+K.jbs = zvals.site.jbs[,3]
+C0.jbs = zvals.site.jbs[,4]
+
+dDOC.jbs = ((Qmax.jbs*K.jbs*DOCf)/(1+(K.jbs*DOCf)) - C0.jbs)
+jbs <- data.frame(exp = rep("JBS",320)) %>% mutate(
+                  DOCf = 0:319,
+                  dDOC = dDOC.jbs)
+#TAF
+zvals.site.taf <- filter(zvals, exp == "TAF")
+kvals.site.taf <- filter(kvals, exp == "TAF")
+Qmax.taf = zvals.site.taf[,2]
+K.taf = zvals.site.taf[,3]
+C0.taf = zvals.site.taf[,4]
+
+dDOC.taf = ((Qmax.taf*K.taf*DOCf)/(1+(K.taf*DOCf)) - C0.taf)
+taf <- data.frame(exp = rep("TAF",320)) %>% mutate(
+                  DOCf = 0:319,
+                  dDOC = dDOC.taf)
+#TAS
+zvals.site.tas <- filter(zvals, exp == "TAS")
+kvals.site.tas <- filter(kvals, exp == "TAS")
+Qmax.tas = zvals.site.tas[,2]
+K.tas = zvals.site.tas[,3]
+C0.tas = zvals.site.tas[,4]
+
+dDOC.tas = ((Qmax.tas*K.tas*DOCf)/(1+(K.tas*DOCf)) - C0.tas)
+tas <- data.frame(exp = rep("TAS",320)) %>% mutate(
+                  DOCf = 0:319,
+                  dDOC = dDOC.tas)
+
+lang.data <- rbind(jbf,jbs,taf,tas)
+kin.data <- rbind()
+
+lang.iso <- ggplot(lang.data) +
+  geom_line(aes(DOCf, dDOC, color = exp, lty = exp), size = 1.3) +
+  geom_point(data=kvals, aes(DOCf.mg.L, dDOC.mg.g, color = exp, shape = exp), size = 2.5) +
+  geom_hline(yintercept = 0, color = "darkgray") +
+  xlab(expression(DOC[f]~(mg~L^-1))) +
+  ylab(expression(Delta~DOC[0-f]~(mg~g^-1))) +
+  ggtitle("Langmuir Isotherm Comparison") +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+        text = element_text(size = 14)) 
+lang.iso
+ggsave(filename="lang.iso.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename="lang.iso.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+```
+
+
 
 ```{r}
 rm(list = ls())  # Clean up
