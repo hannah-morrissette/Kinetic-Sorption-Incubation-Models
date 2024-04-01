@@ -1,0 +1,624 @@
+---
+title: "Langmuir Combined Graphs"
+author: "Hannah Morrissette"
+date: "26 Dec 2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(patchwork)
+
+```
+
+```{r}
+#t <- c(0.0, 0.058, 0.17, 0.25, 1.0, 6.0, 12.0, 24.0)
+t <- seq(0,24,0.1) 
+
+obsdat <- read.csv("DOC0_Obs.csv")
+obsdat2 <- obsdat %>% separate(site, c("exp", "point"), 4)
+
+moddat <- read.csv("newSaturatedModel.csv")
+
+stats <- read.csv("newSaturatedOutput.csv")
+
+#dDOC/dt <- kdes*S(t) - (kads*DOC(t)*(Qm - S(t))) 
+```
+
+## JUG BAY
+```{r}
+#z <- (exp(-1*(ka + kd)*t))
+
+#W(t) <- (1 / (ka + kd))*((S0 * kd * (1 - (exp(-1*(ka + kd)*t)))) + (W0 * (ka + (kd * (exp(-1*(ka + kd)*t))))))
+
+lf <- obsdat2 %>% filter(exp == "JBLF")
+  lfr <- lf %>% filter(phase == "rem")
+  lfk <- lf %>% filter(phase == "keep")
+hf <- obsdat2 %>% filter(exp == "JBHF")
+  hfr <- hf %>% filter(phase == "rem")
+  hfk <- hf %>% filter(phase == "keep")
+jbfmod <- moddat[,1]
+
+
+stl <- paste0("Low [DOC]")
+yl <- (max(lf$DOC)+0.8)
+sth <- paste0("High [DOC]")
+yh <- (min(hf$DOC)+0.8)
+rsqf <- expression(~R^{"2"}~ 'adj = 0.9947')
+RMSE <- round(stats[6,2], digits = 3)
+st <- paste0("RMSE = ",RMSE)
+             
+base <- ggplot() +
+  xlim(0,24)
+
+sat1 <- base + geom_line(aes(t,jbfmod[1:241]), color = "palegreen4", size = 1.2) +
+  geom_point(data = lfr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = lfk, aes(time, DOC), shape = 21, color = "black", fill = "palegreen4") +
+  geom_line(aes(t,jbfmod[242:482]), color = "palegreen2", size = 1.2) +  
+  geom_point(data = hfr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = hfk, aes(time, DOC), shape = 21, color = "black", fill = "palegreen2") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Fresh", tag = "(a)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "palegreen4") +
+  annotate("text",x = 12, y = yh, label = sth, color = "palegreen2") +
+  annotate("text",x = 12, y = 4, label = st)
+
+sat1
+```
+
+```{r}
+ls <- obsdat2 %>% filter(exp == "JBLS")
+  lsr <- ls %>% filter(phase == "rem")
+  lsk <- ls %>% filter(phase == "keep")
+hs <- obsdat2 %>% filter(exp == "JBHS")
+  hsr <- hs %>% filter(phase == "rem")
+  hsk <- hs %>% filter(phase == "keep")
+jbsmod <- moddat[,2]
+
+stl <- paste0("Low [DOC]")
+yl <- (max(ls$DOC)+0.5)
+sth <- paste0("High [DOC]")
+yh <- (min(hs$DOC)+0.5)
+rsqs <- expression(~R^{"2"}~ 'adj = 0.9988')
+RMSE <- round(stats[6,3], digits = 3)
+st <- paste0("RMSE = ",RMSE)
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+sat2 <- base + geom_line(aes(t,jbsmod[1:241]), color = "palegreen4", size = 1.2) +
+  geom_point(data = lsr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = lsk, aes(time, DOC), shape = 21, color = "black", fill = "palegreen4") +
+  geom_line(aes(t,jbsmod[242:482]), color = "palegreen2", size = 1.2) +
+  geom_point(data = hsr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = hsk, aes(time, DOC), shape = 21, color = "black", fill = "palegreen2") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Saline", tag = "(b)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "palegreen4") +
+  annotate("text",x = 12, y = yh, label = sth, color = "palegreen2") +
+  annotate("text",x = 12, y = 3, label = st)
+
+sat2
+```
+
+```{r}
+satJB <- (sat1+sat2) + 
+  plot_annotation(title = "Model and Observed DOC over Time", subtitle = "Jug Bay") 
+ggsave(filename = "JBsat_new.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "JBsat_new.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+
+plot(satJB)
+```
+
+
+## TASKINAS
+```{r}
+#z <- (exp(-1*(ka + kd)*t))
+
+#W(t) <- (1 / (ka + kd))*((S0 * kd * (1 - (exp(-1*(ka + kd)*t)))) + (W0 * (ka + (kd * (exp(-1*(ka + kd)*t))))))
+
+lf <- obsdat2 %>% filter(exp == "TALF")
+  lfr <- lf %>% filter(phase == "rem")
+  lfk <- lf %>% filter(phase == "keep")
+hf <- obsdat2 %>% filter(exp == "TAHF")
+  hfr <- hf %>% filter(phase == "rem")
+  hfk <- hf %>% filter(phase == "keep")
+tafmod <- moddat[,3]
+
+stl <- paste0("Low [DOC]")
+yl <- (max(lf$DOC)+0.8)
+sth <- paste0("High [DOC]")
+yh <- (min(hf$DOC)+1.3)
+rsqf <- expression(~R^{"2"}~ 'adj = 0.9978')
+RMSE <- round(stats[6,4], digits = 3)
+st <- paste0("RMSE = ",RMSE)
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+sat1 <- base + geom_line(aes(t,tafmod[1:241]), color = "palegreen4", size = 1.2) +
+  geom_point(data = lfr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = lfk, aes(time, DOC), shape = 21, color = "black", fill = "palegreen4") +
+  geom_line(aes(t,tafmod[242:482]), color = "palegreen2", size = 1.2) +
+  geom_point(data = hfr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = hfk, aes(time, DOC), shape = 21, color = "black", fill = "palegreen2") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Fresh", tag = "(a)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "palegreen4") +
+  annotate("text",x = 12, y = yh, label = sth, color = "palegreen2")+
+  annotate("text",x = 12, y = 5, label = st)
+
+sat1
+```
+
+```{r}
+ls <- obsdat2 %>% filter(exp == "TALS")
+  lsr <- ls %>% filter(phase == "rem")
+  lsk <- ls %>% filter(phase == "keep")
+hs <- obsdat2 %>% filter(exp == "TAHS")
+  hsr <- hs %>% filter(phase == "rem")
+  hsk <- hs %>% filter(phase == "keep")
+tasmod <- moddat[,4]
+
+stl <- paste0("Low [DOC]")
+yl <- (max(ls$DOC)+0.5)
+sth <- paste0("High [DOC]")
+yh <- (min(hs$DOC)+0.5)
+rsqs <- expression(~R^{"2"}~ 'adj = 0.9961')
+RMSE <- round(stats[6,5], digits = 3)
+st <- paste0("RMSE = ",RMSE)
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+sat2 <- base + geom_line(aes(t,tasmod[1:241]), color = "palegreen4", size = 1.2) +
+  geom_point(data = lsr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = lsk, aes(time, DOC), shape = 21, color = "black", fill = "palegreen4") +
+  geom_line(aes(t,tasmod[242:482]), color = "palegreen2", size = 1.2) +
+  geom_point(data = hsr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = hsk, aes(time, DOC), shape = 21, color = "black", fill = "palegreen2") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Saline", tag = "(b)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "palegreen4") +
+  annotate("text",x = 12, y = yh, label = sth, color = "palegreen2")+
+  annotate("text",x = 12, y = 4, label = st)
+
+sat2
+```
+
+```{r}
+satTA <- (sat1+sat2) + 
+  plot_annotation(title = "Model and Observed DOC over Time", subtitle = "Taskinas") 
+ggsave(filename = "TAsat_new.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "TAsat_new.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+
+plot(satTA)
+```
+
+
+## SHALLOW CREEK
+```{r}
+#z <- (exp(-1*(ka + kd)*t))
+
+#W(t) <- (1 / (ka + kd))*((S0 * kd * (1 - (exp(-1*(ka + kd)*t)))) + (W0 * (ka + (kd * (exp(-1*(ka + kd)*t))))))
+
+
+lf <- obsdat2 %>% filter(exp == "WCLF")
+hf <- obsdat2 %>% filter(exp == "WCHF")
+wcfmod <- moddat[,5]
+
+stl <- paste0("Low [DOC]")
+yl <- (max(lf$DOC)+0.3)
+sth <- paste0("High [DOC]")
+yh <- (min(hf$DOC)+0.8)
+rsqf <- expression(~R^{"2"}~ 'adj = 0.9922')
+RMSE <- round(stats[6,6], digits = 3)
+st <- paste0("RMSE = ",RMSE)
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+sat1 <- base + geom_line(aes(t,wcfmod[1:241]), color = "palegreen4", size = 1.2) +
+  geom_point(data = lf, aes(time, DOC), shape = 21, color = "black", fill = "palegreen4") +
+  geom_line(aes(t,wcfmod[242:482]), color = "palegreen2", size = 1.2) +
+  geom_point(data = hf, aes(time, DOC), shape = 21, color = "black", fill = "palegreen2") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Fresh", tag = "(a)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "palegreen4") +
+  annotate("text",x = 12, y = yh, label = sth, color = "palegreen2")+
+  annotate("text",x = 12, y = 1.5, label = st)
+
+```
+
+```{r}
+
+ls <- obsdat2 %>% filter(exp == "WCLS")
+hs <- obsdat2 %>% filter(exp == "WCHS")
+wcsmod <- moddat[,6]
+
+stl <- paste0("Low [DOC]")
+yl <- (max(ls$DOC)+0.3)
+sth <- paste0("High [DOC]")
+yh <- (min(hs$DOC)+0.3)
+rsqs <- expression(~R^{"2"}~ 'adj = -0.1775')
+RMSE <- round(stats[6,7], digits = 3)
+st <- paste0("RMSE = ",RMSE)
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+sat2 <- base + geom_line(aes(t,wcsmod[1:241]), color = "palegreen4", size = 1.2) +
+  geom_point(data = ls, aes(time, DOC), shape = 21, color = "black", fill = "palegreen4") +
+  geom_line(aes(t,wcsmod[242:482]), color = "palegreen2", size = 1.2) +
+  geom_point(data = hs, aes(time, DOC), shape = 21, color = "black", fill = "palegreen2") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Saline", tag = "(b)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "palegreen4") +
+  annotate("text",x = 12, y = yh, label = sth, color = "palegreen2")+
+  annotate("text",x = 12, y = 1.25, label = st)
+```
+
+```{r}
+satWC <- (sat1+sat2) + 
+  plot_annotation(title = "Model and Observed DOC over Time", subtitle = "Shallow Creek") 
+ggsave(filename = "WCsat_new.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "WCsat_new.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+
+plot(satWC)
+```
+
+
+## SHALLOW INTERMEDIATE
+```{r}
+#z <- (exp(-1*(ka + kd)*t))
+
+#W(t) <- (1 / (ka + kd))*((S0 * kd * (1 - (exp(-1*(ka + kd)*t)))) + (W0 * (ka + (kd * (exp(-1*(ka + kd)*t))))))
+
+lf <- obsdat2 %>% filter(exp == "WILF")
+hf <- obsdat2 %>% filter(exp == "WIHF")
+wifmod <- moddat[,7]
+
+
+stl <- paste0("Low [DOC]")
+yl <- (max(lf$DOC)+0.5)
+sth <- paste0("High [DOC]")
+yh <- (min(hf$DOC)+0.25)
+rsqf <- expression(~R^{"2"}~ 'adj = 0.9941')
+RMSE <- round(stats[6,8], digits = 3)
+st <- paste0("RMSE = ",RMSE)
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+sat1 <- base + geom_line(aes(t,wifmod[1:241]), color = "palegreen4", size = 1.2) +
+  geom_point(data = lf, aes(time, DOC), shape = 21, color = "black", fill = "palegreen4") +
+  geom_line(aes(t,wifmod[242:482]), color = "palegreen2", size = 1.2) +
+  geom_point(data = hf, aes(time, DOC), shape = 21, color = "black", fill = "palegreen2") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Fresh", tag = "(a)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "palegreen4") +
+  annotate("text",x = 12, y = yh, label = sth, color = "palegreen2")+
+  annotate("text",x = 12, y = 2, label = st)
+
+```
+
+```{r}
+ls <- obsdat2 %>% filter(exp == "WILS")
+hs <- obsdat2 %>% filter(exp == "WIHS")
+wismod <- moddat[,8]
+
+stl <- paste0("Low [DOC]")
+yl <- (max(ls$DOC)+0.5)
+sth <- paste0("High [DOC]")
+yh <- (min(hs$DOC)+0.25)
+rsqs <- expression(~R^{"2"}~ 'adj = 0.9962')
+RMSE <- round(stats[6,9], digits = 3)
+st <- paste0("RMSE = ",RMSE)
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+sat2 <- base + geom_line(aes(t,wismod[1:241]), color = "palegreen4", size = 1.2) +
+  geom_point(data = ls, aes(time, DOC), shape = 21, color = "black", fill = "palegreen4") +
+  geom_line(aes(t,wismod[242:482]), color = "palegreen2", size = 1.2) +
+  geom_point(data = hs, aes(time, DOC), shape = 21, color = "black", fill = "palegreen2") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Saline", tag = "(b)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "palegreen4") +
+  annotate("text",x = 12, y = yh, label = sth, color = "palegreen2")+
+  annotate("text",x = 12, y = 1.75, label = st)
+```
+
+```{r}
+satWI <- (sat1+sat2) + 
+  plot_annotation(title = "Model and Observed DOC over Time", subtitle = "Shallow Intermediate") 
+ggsave(filename = "WIsat_new.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "WIsat_new.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+
+plot(satWI)
+```
+
+## SHALLOW HIGH MARSH
+```{r}
+#z <- (exp(-1*(ka + kd)*t))
+
+#W(t) <- (1 / (ka + kd))*((S0 * kd * (1 - (exp(-1*(ka + kd)*t)))) + (W0 * (ka + (kd * (exp(-1*(ka + kd)*t))))))
+
+lf <- obsdat2 %>% filter(exp == "WMLF")
+hf <- obsdat2 %>% filter(exp == "WMHF")
+wmfmod <- moddat[,9]
+
+stl <- paste0("Low [DOC]")
+yl <- (max(lf$DOC)+0.3)
+sth <- paste0("High [DOC]")
+yh <- (min(hf$DOC)+0.2)
+rsqf <- expression(~R^{"2"}~ 'adj = 0.9959')
+RMSE <- round(stats[6,10], digits = 3)
+st <- paste0("RMSE = ",RMSE)
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+sat1 <- base + geom_line(aes(t,wmfmod[1:241]), color = "palegreen4", size = 1.2) +
+  geom_point(data = lf, aes(time, DOC), shape = 21, color = "black", fill = "palegreen4") +
+  geom_line(aes(t,wmfmod[242:482]), color = "palegreen2", size = 1.2) +
+  geom_point(data = hf, aes(time, DOC), shape = 21, color = "black", fill = "palegreen2") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Fresh", tag = "(a)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "palegreen4") +
+  annotate("text",x = 12, y = yh, label = sth, color = "palegreen2")+
+  annotate("text",x = 12, y = 2, label = st)
+
+```
+
+```{r}
+ls <- obsdat2 %>% filter(exp == "WMLS")
+hs <- obsdat2 %>% filter(exp == "WMHS")
+wmsmod <- moddat[,10]
+
+stl <- paste0("Low [DOC]")
+yl <- (max(ls$DOC)+0.3)
+sth <- paste0("High [DOC]")
+yh <- (min(hs$DOC)+0.3)
+rsqs <- expression(~R^{"2"}~ 'adj = 0.9935')
+RMSE <- round(stats[6,11], digits = 3)
+st <- paste0("RMSE = ",RMSE)
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+sat2 <- base + geom_line(aes(t,wmsmod[1:241]), color = "palegreen4", size = 1.2) +
+  geom_point(data = ls, aes(time, DOC), shape = 21, color = "black", fill = "palegreen4") +
+  geom_line(aes(t,wmsmod[242:482]), color = "palegreen2", size = 1.2) +
+  geom_point(data = hs, aes(time, DOC), shape = 21, color = "black", fill = "palegreen2") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Saline", tag = "(b)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "palegreen4") +
+  annotate("text",x = 12, y = yh, label = sth, color = "palegreen2")+
+  annotate("text",x = 12, y = 2, label = st)
+```
+
+```{r}
+satWM <- (sat1+sat2) + 
+  plot_annotation(title = "Model and Observed DOC over Time", subtitle = "Shallow High Marsh") 
+ggsave(filename = "WMsat_new.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "WMsat_new.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+
+plot(satWM)
+```
+
+
+## DEEP CREEK
+```{r}
+#z <- (exp(-1*(ka + kd)*t))
+
+#W(t) <- (1 / (ka + kd))*((S0 * kd * (1 - (exp(-1*(ka + kd)*t)))) + (W0 * (ka + (kd * (exp(-1*(ka + kd)*t))))))
+
+lf <- obsdat2 %>% filter(exp == "PCLF")
+hf <- obsdat2 %>% filter(exp == "PCHF")
+pcfmod <- moddat[,11]
+
+stl <- paste0("Low [DOC]")
+yl <- (max(lf$DOC)+0.3)
+sth <- paste0("High [DOC]")
+yh <- (min(hf$DOC)+0.3)
+rsqf <- expression(~R^{"2"}~ 'adj = 0.9954')
+RMSE <- round(stats[6,12], digits = 3)
+st <- paste0("RMSE = ",RMSE)
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+sat1 <- base + geom_line(aes(t,pcfmod[1:241]), color = "palegreen4", size = 1.2) +
+  geom_point(data = lf, aes(time, DOC), shape = 21, color = "black", fill = "palegreen4") +
+  geom_line(aes(t,pcfmod[242:482]), color = "palegreen2", size = 1.2) +
+  geom_point(data = hf, aes(time, DOC), shape = 21, color = "black", fill = "palegreen2") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Fresh", tag = "(a)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "palegreen4") +
+  annotate("text",x = 12, y = yh, label = sth, color = "palegreen2")+
+  annotate("text",x = 12, y = 2, label = st)
+
+```
+
+```{r}
+ls <- obsdat2 %>% filter(exp == "PCLS")
+hs <- obsdat2 %>% filter(exp == "PCHS")
+pcsmod <- moddat[,12]
+
+stl <- paste0("Low [DOC]")
+yl <- (max(ls$DOC)+0.3)
+sth <- paste0("High [DOC]")
+yh <- (min(hs$DOC)+0.3)
+rsqs <- expression(~R^{"2"}~ 'adj = 0.9974')
+RMSE <- round(stats[6,13], digits = 3)
+st <- paste0("RMSE = ",RMSE)
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+sat2 <- base + geom_line(aes(t,pcsmod[1:241]), color = "palegreen4", size = 1.2) +
+  geom_point(data = ls, aes(time, DOC), shape = 21, color = "black", fill = "palegreen4") +
+  geom_line(aes(t,pcsmod[242:482]), color = "palegreen2", size = 1.2) +
+  geom_point(data = hs, aes(time, DOC), shape = 21, color = "black", fill = "palegreen2") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Saline", tag = "(b)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "palegreen4") +
+  annotate("text",x = 12, y = yh, label = sth, color = "palegreen2")+
+  annotate("text",x = 12, y = 1.75, label = st)
+```
+
+```{r}
+satPC <- (sat1+sat2) + 
+  plot_annotation(title = "Model and Observed DOC over Time", subtitle = "Deep Creek") 
+ggsave(filename = "PCsat_new.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "PCsat_new.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+
+plot(satPC)
+```
+
+
+## DEEP INTERMEDIATE
+```{r}
+#z <- (exp(-1*(ka + kd)*t))
+
+#W(t) <- (1 / (ka + kd))*((S0 * kd * (1 - (exp(-1*(ka + kd)*t)))) + (W0 * (ka + (kd * (exp(-1*(ka + kd)*t))))))
+
+lf <- obsdat2 %>% filter(exp == "PILF")
+hf <- obsdat2 %>% filter(exp == "PIHF")
+pifmod <- moddat[,13]
+
+stl <- paste0("Low [DOC]")
+yl <- (max(lf$DOC)+0.3)
+sth <- paste0("High [DOC]")
+yh <- (min(hf$DOC)+0.3)
+rsqf <- expression(~R^{"2"}~ 'adj = 0.9970')
+RMSE <- round(stats[6,14], digits = 3)
+st <- paste0("RMSE = ",RMSE)
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+sat1 <- base + geom_line(aes(t,pifmod[1:241]), color = "palegreen4", size = 1.2) +
+  geom_point(data = lf, aes(time, DOC), shape = 21, color = "black", fill = "palegreen4") +
+  geom_line(aes(t,pifmod[242:482]), color = "palegreen2", size = 1.2) +
+  geom_point(data = hf, aes(time, DOC), shape = 21, color = "black", fill = "palegreen2") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Fresh", tag = "(a)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "palegreen4") +
+  annotate("text",x = 12, y = yh, label = sth, color = "palegreen2")+
+  annotate("text",x = 12, y = 2, label = st)
+
+```
+
+```{r}
+ls <- obsdat2 %>% filter(exp == "PILS")
+hs <- obsdat2 %>% filter(exp == "PIHS")
+pismod <- moddat[,14]
+
+stl <- paste0("Low [DOC]")
+yl <- (max(ls$DOC)+0.3)
+sth <- paste0("High [DOC]")
+yh <- (min(hs$DOC)+0.3)
+rsqs <- expression(~R^{"2"}~ 'adj = 0.9973')
+RMSE <- round(stats[6,15], digits = 3)
+st <- paste0("RMSE = ",RMSE)
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+sat2 <- base + geom_line(aes(t,pismod[1:241]), color = "palegreen4", size = 1.2) +
+  geom_point(data = ls, aes(time, DOC), shape = 21, color = "black", fill = "palegreen4") +
+  geom_line(aes(t,pismod[242:482]), color = "palegreen2", size = 1.2) +
+  geom_point(data = hs, aes(time, DOC), shape = 21, color = "black", fill = "palegreen2") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Saline", tag = "(b)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "palegreen4") +
+  annotate("text",x = 12, y = yh, label = sth, color = "palegreen2")+
+  annotate("text",x = 12, y = 1.75, label = st)
+```
+
+```{r}
+satPI <- (sat1+sat2) + 
+  plot_annotation(title = "Model and Observed DOC over Time", subtitle = "Deep Intermediate") 
+ggsave(filename = "PIsat_new.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "PIsat_new.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+
+plot(satPI)
+```
+
+
+## DEEP HIGH MARSH
+```{r}
+#z <- (exp(-1*(ka + kd)*t))
+
+#W(t) <- (1 / (ka + kd))*((S0 * kd * (1 - (exp(-1*(ka + kd)*t)))) + (W0 * (ka + (kd * (exp(-1*(ka + kd)*t))))))
+
+lf <- obsdat2 %>% filter(exp == "PMLF")
+hf <- obsdat2 %>% filter(exp == "PMHF")
+pmfmod <- moddat[,15]
+
+stl <- paste0("Low [DOC]")
+yl <- (max(lf$DOC)+0.3)
+sth <- paste0("High [DOC]")
+yh <- (min(hf$DOC)+0.3)
+rsqf <- expression(~R^{"2"}~ 'adj = 0.9944')
+RMSE <- round(stats[6,16], digits = 3)
+st <- paste0("RMSE = ",RMSE)
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+sat1 <- base + geom_line(aes(t,pmfmod[1:241]), color = "palegreen4", size = 1.2) +
+  geom_point(data = lf, aes(time, DOC), shape = 21, color = "black", fill = "palegreen4") +
+  geom_line(aes(t,pmfmod[242:482]), color = "palegreen2", size = 1.2) +
+  geom_point(data = hf, aes(time, DOC), shape = 21, color = "black", fill = "palegreen2") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Fresh", tag = "(a)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "palegreen4") +
+  annotate("text",x = 12, y = yh, label = sth, color = "palegreen2")+
+  annotate("text",x = 12, y = 2, label = st)
+
+```
+
+```{r}
+ls <- obsdat2 %>% filter(exp == "PMLS")
+hs <- obsdat2 %>% filter(exp == "PMHS")
+pmsmod <- moddat[,16]
+
+stl <- paste0("Low [DOC]")
+yl <- (max(ls$DOC)+0.3)
+sth <- paste0("High [DOC]")
+yh <- (min(hs$DOC)+0.3)
+rsqs <- expression(~R^{"2"}~ 'adj = 0.9938')
+RMSE <- round(stats[6,17], digits = 3)
+st <- paste0("RMSE = ",RMSE)
+
+base <- ggplot() +
+  xlim(0,24.05)
+
+sat2 <- base + geom_line(aes(t,pmsmod[1:241]), color = "palegreen4", size = 1.2) +
+  geom_point(data = ls, aes(time, DOC), shape = 21, color = "black", fill = "palegreen4") +
+  geom_line(aes(t,pmsmod[242:482]), color = "palegreen2", size = 1.2) +
+  geom_point(data = hs, aes(time, DOC), shape = 21, color = "black", fill = "palegreen2") +
+  theme_minimal() +
+  labs(x = "Time (hrs)", y = "DOC (mg)", title = "Saline", tag = "(b)")+
+  annotate("text",x = 12, y = yl, label = stl, color = "palegreen4") +
+  annotate("text",x = 12, y = yh, label = sth, color = "palegreen2")+
+  annotate("text",x = 12, y = 1.75, label = st)
+```
+
+```{r}
+satPM <- (sat1+sat2) + 
+  plot_annotation(title = "Model and Observed DOC over Time", subtitle = "Deep High Marsh") 
+ggsave(filename = "PMsat_new.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "PMsat_new.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+
+plot(satPM)
+```
