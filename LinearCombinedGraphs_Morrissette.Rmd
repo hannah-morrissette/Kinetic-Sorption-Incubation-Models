@@ -30,7 +30,11 @@ obsdat2 <- obsdat %>% separate(site, c("exp", "point"), 4)
 #W(t) <- (1 / (ka + kd))*((S0 * kd * (1 - (exp(-1*(ka + kd)*t)))) + (W0 * (ka + (kd * (exp(-1*(ka + kd)*t))))))
 
 lf <- obsdat2 %>% filter(exp == "JBLF")
+  lfr <- lf %>% filter(phase == "rem")
+  lfk <- lf %>% filter(phase == "keep")
 hf <- obsdat2 %>% filter(exp == "JBHF")
+  hfr <- hf %>% filter(phase == "rem")
+  hfk <- hf %>% filter(phase == "keep")
 
 kaF <- 0.9249
 kdF <- 0.3829 
@@ -54,9 +58,11 @@ base <- ggplot() +
   xlim(0,24.05)
 
 comp1 <- base + geom_function(fun = WLt, color = "red3", linetype = "dashed", size = 1.2) +
-  geom_point(data = lf, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
+  geom_point(data = lfr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = lfk, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
   geom_function(fun = WHt, color = "salmon", linetype = "dashed", size = 1.2) +
-  geom_point(data = hf, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
+  geom_point(data = hfr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = hfk, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
   theme_minimal() +
   labs(x = "Time (hrs)", y = "DOC (mg)", title = "Fresh", tag = "(a)")+
   annotate("text",x = 12, y = yl, label = stl, color = "red3") +
@@ -68,7 +74,11 @@ comp1
 
 ```{r}
 ls <- obsdat2 %>% filter(exp == "JBLS")
+  lsr <- ls %>% filter(phase == "rem")
+  lsk <- ls %>% filter(phase == "keep")
 hs <- obsdat2 %>% filter(exp == "JBHS")
+  hsr <- hs %>% filter(phase == "rem")
+  hsk <- hs %>% filter(phase == "keep")
 
 kaS <- 0.9269
 kdS <- 1.1075
@@ -92,9 +102,11 @@ base <- ggplot() +
   xlim(0,24.05)
 
 comp2 <- base + geom_function(fun = WLt, color = "red3", linetype = "dashed", size = 1.2) +
-  geom_point(data = ls, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
+  geom_point(data = lsk, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
+  geom_point(data = lsr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
   geom_function(fun = WHt, color = "salmon", linetype = "dashed", size = 1.2) +
-  geom_point(data = hs, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
+  geom_point(data = hsk, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
+  geom_point(data = hsr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
   theme_minimal() +
   labs(x = "Time (hrs)", y = "DOC (mg)", title = "Saline", tag = "(b)")+
   annotate("text",x = 12, y = yl, label = stl, color = "red3") +
@@ -120,7 +132,11 @@ plot(compJB)
 #W(t) <- (1 / (ka + kd))*((S0 * kd * (1 - (exp(-1*(ka + kd)*t)))) + (W0 * (ka + (kd * (exp(-1*(ka + kd)*t))))))
 
 lf <- obsdat2 %>% filter(exp == "TALF")
+  lfr <- lf %>% filter(phase == "rem")
+  lfk <- lf %>% filter(phase == "keep")
 hf <- obsdat2 %>% filter(exp == "TAHF")
+  hfr <- hf %>% filter(phase == "rem")
+  hfk <- hf %>% filter(phase == "keep")
 
 kaF <- -0.0099
 kdF <- -0.0010
@@ -144,9 +160,11 @@ base <- ggplot() +
   xlim(0,24.05)
 
 comp1 <- base + geom_function(fun = WLt, color = "red3", linetype = "dashed", size = 1.2) +
-  geom_point(data = lf, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
+  geom_point(data = lfr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = lfk, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
   geom_function(fun = WHt, color = "salmon", linetype = "dashed", size = 1.2) +
-  geom_point(data = hf, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
+  geom_point(data = hfr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = hfk, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
   theme_minimal() +
   labs(x = "Time (hrs)", y = "DOC (mg)", title = "Fresh", tag = "(a)")+
   annotate("text",x = 12, y = yl, label = stl, color = "red3") +
@@ -157,7 +175,11 @@ comp1
 
 ```{r}
 ls <- obsdat2 %>% filter(exp == "TALS")
+  lsr <- ls %>% filter(phase == "rem")
+  lsk <- ls %>% filter(phase == "keep")
 hs <- obsdat2 %>% filter(exp == "TAHS")
+  hsr <- hs %>% filter(phase == "rem")
+  hsk <- hs %>% filter(phase == "keep")
 
 kaS <- 1.9571
 kdS <- 0.6884
@@ -182,9 +204,11 @@ base <- ggplot() +
   xlim(0,24.05)
 
 comp2 <- base + geom_function(fun = WLt, color = "red3", linetype = "dashed", size = 1.2) +
-  geom_point(data = ls, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
+  geom_point(data = lsr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = lsk, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
   geom_function(fun = WHt, color = "salmon", linetype = "dashed", size = 1.2) +
-  geom_point(data = hs, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
+  geom_point(data = hsr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = hsk, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
   theme_minimal() +
   labs(x = "Time (hrs)", y = "DOC (mg)", title = "Saline", tag = "(b)")+
   annotate("text",x = 12, y = yl, label = stl, color = "red3") +
