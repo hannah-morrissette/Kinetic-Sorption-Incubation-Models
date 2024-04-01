@@ -21,6 +21,8 @@ library(tidyr)
 library(ggplot2)
 library(tidyverse)
 library(modelr)
+library(ggbreak)
+
 ```
 
 # Model structure
@@ -146,7 +148,7 @@ cost <- function(p, dat, times_out, model, initial) {
 #run 4 rows at a time to do the graphs in the next section
 
 #comp <- lapply(1:nrow(y0df), function(x){    #do all rows
-comp <- lapply(c(29:32), function(x){          #try some
+comp <- lapply(c(1:4), function(x){          #try some
 #site = "JBLS"                                #try just one site 
 site <- as.character(y0df$X[x])  
 print(site)
@@ -213,51 +215,99 @@ st <- paste0("RMSE = ",RMSE)
 
 if (site == "JBHF" || site == "TAHF" || site == "WCHF" || site == "WIHF" || site == "WMHF" || site == "PCHF" || site == "PIHF" || site == "PMHF") {
   ylabel <- mean(dat3$DOC) + 0.15
+  ymin <- min(dat3$DOC[1:4])-0.8
+  ymax <- max(dat3$DOC[1:4])+0.4
   
   comp1 <- ggplot(out1_df) +
   geom_line(aes(time, DOC), color = "orchid2", linetype = "dashed", size = 1.2) +
   geom_point(data = dat3, aes(time, DOC),shape = 21, color = "black", fill = "orchid2") +
   theme_minimal() +
   labs(x = "Time (hrs)", y = "DOC (mg)", title = site, tag = "(a)") +
-  annotate("text",x = 12, y = ylabel, label = st)
+  annotate("text",x = 16, y = ylabel, label = st) + 
+  scale_x_break(c(1.5,10), scales = 2)
 #annotate is better than geom_text - puts as many texts on as points
   assign("comp1",comp1,envir = .GlobalEnv)
   
+  comp1hr <- ggplot(out1_df) +
+  geom_line(aes(time, DOC), color = "orchid2", linetype = "dashed", size = 1.2) +
+  geom_point(data = dat3, aes(time, DOC),shape = 21, color = "black", fill = "orchid2") +
+  theme_minimal() +
+  xlim(0,0.5)+
+  ylim(ymin,ymax) +
+  labs(x = "Time (hrs)", y = "DOC (mg)")
+  assign("comp1hr",comp1hr,envir = .GlobalEnv)
+  
 } else if (site == "JBHS" || site == "TAHS" || site == "WCHS" || site == "WIHS" || site == "WMHS" || site == "PCHS" || site == "PIHS" || site == "PMHS") {
   ylabel <- mean(dat3$DOC)
+  ymin <- min(dat3$DOC[1:4])-0.8
+  ymax <- max(dat3$DOC[1:4])+0.4
   
   comp2 <- ggplot(out1_df) +
   geom_line(aes(time, DOC), color = "orchid2", linetype = "dashed", size = 1.2) +
   geom_point(data = dat3, aes(time, DOC), shape = 21, color = "black", fill = "orchid2") +
   theme_minimal() +
   labs(x = "Time (hrs)", y = "DOC (mg)", title = site, tag = "(b)") +
-  annotate("text",x = 12, y = ylabel, label = st)
+  annotate("text",x = 16, y = ylabel, label = st) + 
+  scale_x_break(c(1.5,10), scales = 2)
 #annotate is better than geom_text - puts as many texts on as points
   assign("comp2",comp2,envir = .GlobalEnv)
   
+  comp2hr <- ggplot(out1_df) +
+  geom_line(aes(time, DOC), color = "orchid2", linetype = "dashed", size = 1.2) +
+  geom_point(data = dat3, aes(time, DOC),shape = 21, color = "black", fill = "orchid2") +
+  theme_minimal() +
+  xlim(0,0.5)+
+  ylim(ymin,ymax)  +
+  labs(x = "Time (hrs)", y = "DOC (mg)")
+  assign("comp2hr",comp2hr,envir = .GlobalEnv)
+  
 } else if (site == "JBLF" || site == "TALF" || site == "WCLF" || site == "WILF" || site == "WMLF" || site == "PCLF" || site == "PILF" || site == "PMLF") {
   ylabel <- mean(dat3$DOC) - 0.15
+  ymin <- min(dat3$DOC[1:4])-0.8
+  ymax <- max(dat3$DOC[1:4])+0.4
   
   comp3 <- ggplot(out1_df) +
   geom_line(aes(time, DOC), color = "orchid4", linetype = "dashed", size = 1.2) +
   geom_point(data = dat3, aes(time, DOC), shape = 21, color = "black", fill = "orchid4") +
   theme_minimal() +
   labs(x = "Time (hrs)", y = "DOC (mg)", title = site, tag = "(c)") +
-  annotate("text",x = 12, y = ylabel, label = st)
+  annotate("text",x = 16, y = ylabel, label = st) + 
+  scale_x_break(c(1.5,10), scales = 2)
 #annotate is better than geom_text - puts as many texts on as points
   assign("comp3",comp3,envir = .GlobalEnv)
   
+  comp3hr <- ggplot(out1_df) +
+  geom_line(aes(time, DOC), color = "orchid4", linetype = "dashed", size = 1.2) +
+  geom_point(data = dat3, aes(time, DOC),shape = 21, color = "black", fill = "orchid4") +
+  theme_minimal() +
+  xlim(0,0.5)+
+  ylim(ymin,ymax)  +
+  labs(x = "Time (hrs)", y = "DOC (mg)")
+  assign("comp3hr",comp3hr,envir = .GlobalEnv)
+  
 } else if (site == "JBLS" || site == "TALS" || site == "WCLS" || site == "WILS" || site == "WMLS" || site == "PCLS" || site == "PILS" || site == "PMLS") {
   ylabel <- mean(dat3$DOC) - 0.1
+  ymin <- min(dat3$DOC[1:4])-0.8
+  ymax <- max(dat3$DOC[1:4])+0.4
   
   comp4 <- ggplot(out1_df) +
   geom_line(aes(time, DOC), color = "orchid4", linetype = "dashed", size = 1.2) +
   geom_point(data = dat3, aes(time, DOC), shape = 21, color = "black", fill = "orchid4") +
   theme_minimal() +
   labs(x = "Time (hrs)", y = "DOC (mg)", title = site, tag = "(d)") +
-  annotate("text",x = 12, y = ylabel, label = st)
+  annotate("text",x = 16, y = ylabel, label = st) + 
+  scale_x_break(c(1.5,10), scales = 2)
 #annotate is better than geom_text - puts as many texts on as points
   assign("comp4",comp4,envir = .GlobalEnv)
+  
+  comp4hr <- ggplot(out1_df) +
+  geom_line(aes(time, DOC), color = "orchid4", linetype = "dashed", size = 1.2) +
+  geom_point(data = dat3, aes(time, DOC),shape = 21, color = "black", fill = "orchid4") +
+  theme_minimal() +
+  xlim(0,0.5)+
+  ylim(ymin,ymax)  +
+  labs(x = "Time (hrs)", y = "DOC (mg)")
+  assign("comp4hr",comp4hr,envir = .GlobalEnv)
 }
 
 # 
@@ -292,54 +342,69 @@ write.csv(all_odeoutput, "TDep_ODE_output.csv", row.names = FALSE)
 
 ```
 
+
 ```{r}
+library(ggbreak)
+
 tdcompJB <- ((comp1+comp2) / (comp3+comp4)) + 
-  plot_annotation(title = "Model and Observed DOC over Time") 
+  plot_annotation(title = "Model and Observed DOC over Time", subtitle = "Jug Bay") 
 ggsave(filename = "JBtd.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
 ggsave(filename = "JBtd.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
 plot(tdcompJB)
 
-tdcompTA <- ((comp1+comp2) / (comp3+comp4)) + 
-  plot_annotation(title = "Model and Observed DOC over Time") 
+tdcompJBhr <- ((comp1hr+comp2hr) / (comp3hr+comp4hr)) + 
+  plot_annotation(title = "Model and Observed DOC over Time", subtitle = "Jug Bay") 
+ggsave(filename = "JBtdhr.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "JBtdhr.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+plot(tdcompJBhr)
+
+tdcompTA <- ((comp1+comp2) / (comp3+comp4)) +
+  plot_annotation(title = "Model and Observed DOC over Time", subtitle = "Taskinas") 
 ggsave(filename = "TAtd.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
 ggsave(filename = "TAtd.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
 plot(tdcompTA)
 
-tdcompWC <- ((comp1+comp2) / (comp3+comp4)) + 
-  plot_annotation(title = "Model and Observed DOC over Time") 
-ggsave(filename = "WCtd.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
-ggsave(filename = "WCtd.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
-plot(tdcompWC)
+tdcompTAhr <- ((comp1hr+comp2hr) / (comp3hr+comp4hr)) + 
+  plot_annotation(title = "Model and Observed DOC over Time", subtitle = "Taskinas") 
+ggsave(filename = "TAtdhr.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+ggsave(filename = "TAtdhr.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+plot(tdcompTAhr)
 
-tdcompWI <- ((comp1+comp2) / (comp3+comp4)) + 
-  plot_annotation(title = "Model and Observed DOC over Time") 
-ggsave(filename = "WItd.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
-ggsave(filename = "WItd.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
-plot(tdcompWI)
-
-tdcompWM <- ((comp1+comp2) / (comp3+comp4)) + 
-  plot_annotation(title = "Model and Observed DOC over Time") 
-ggsave(filename = "WMtd.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
-ggsave(filename = "WMtd.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
-plot(tdcompWM)
-
-tdcompPC <- ((comp1+comp2) / (comp3+comp4)) + 
-  plot_annotation(title = "Model and Observed DOC over Time") 
-ggsave(filename = "PCtd.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
-ggsave(filename = "PCtd.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
-plot(tdcompPC)
-
-tdcompPI <- ((comp1+comp2) / (comp3+comp4)) + 
-  plot_annotation(title = "Model and Observed DOC over Time") 
-ggsave(filename = "PItd.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
-ggsave(filename = "PItd.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
-plot(tdcompPI)
-
-tdcompPM <- ((comp1+comp2) / (comp3+comp4)) + 
-  plot_annotation(title = "Model and Observed DOC over Time") 
-ggsave(filename = "PMtd.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
-ggsave(filename = "PMtd.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
-plot(tdcompPM)
+# tdcompWC <- ((comp1+comp2) / (comp3+comp4)) + 
+#   plot_annotation(title = "Model and Observed DOC over Time") 
+# ggsave(filename = "WCtd.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+# ggsave(filename = "WCtd.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+# plot(tdcompWC)
+# 
+# tdcompWI <- ((comp1+comp2) / (comp3+comp4)) + 
+#   plot_annotation(title = "Model and Observed DOC over Time") 
+# ggsave(filename = "WItd.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+# ggsave(filename = "WItd.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+# plot(tdcompWI)
+# 
+# tdcompWM <- ((comp1+comp2) / (comp3+comp4)) + 
+#   plot_annotation(title = "Model and Observed DOC over Time") 
+# ggsave(filename = "WMtd.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+# ggsave(filename = "WMtd.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+# plot(tdcompWM)
+# 
+# tdcompPC <- ((comp1+comp2) / (comp3+comp4)) + 
+#   plot_annotation(title = "Model and Observed DOC over Time") 
+# ggsave(filename = "PCtd.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+# ggsave(filename = "PCtd.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+# plot(tdcompPC)
+# 
+# tdcompPI <- ((comp1+comp2) / (comp3+comp4)) + 
+#   plot_annotation(title = "Model and Observed DOC over Time") 
+# ggsave(filename = "PItd.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+# ggsave(filename = "PItd.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+# plot(tdcompPI)
+# 
+# tdcompPM <- ((comp1+comp2) / (comp3+comp4)) + 
+#   plot_annotation(title = "Model and Observed DOC over Time") 
+# ggsave(filename = "PMtd.png", width = 7, height = 7, dpi = 300, units = "in", device='png')
+# ggsave(filename = "PMtd.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
+# plot(tdcompPM)
 
 ```
 
