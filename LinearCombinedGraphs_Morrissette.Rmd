@@ -58,10 +58,10 @@ base <- ggplot() +
   xlim(0,24.05)
 
 comp1 <- base + geom_function(fun = WLt, color = "red3", linetype = "dashed", size = 1.2) +
-  geom_point(data = lfr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = lfr, aes(time, DOC), shape = 21, color = "black", fill = "white") +
   geom_point(data = lfk, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
   geom_function(fun = WHt, color = "salmon", linetype = "dashed", size = 1.2) +
-  geom_point(data = hfr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = hfr, aes(time, DOC), shape = 21, color = "black", fill = "white") +
   geom_point(data = hfk, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
   theme_minimal() +
   labs(x = "Time (hrs)", y = "DOC (mg)", title = "Fresh", tag = "(a)")+
@@ -103,10 +103,10 @@ base <- ggplot() +
 
 comp2 <- base + geom_function(fun = WLt, color = "red3", linetype = "dashed", size = 1.2) +
   geom_point(data = lsk, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
-  geom_point(data = lsr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = lsr, aes(time, DOC), shape = 21, color = "black", fill = "white") +
   geom_function(fun = WHt, color = "salmon", linetype = "dashed", size = 1.2) +
   geom_point(data = hsk, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
-  geom_point(data = hsr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = hsr, aes(time, DOC), shape = 21, color = "black", fill = "white") +
   theme_minimal() +
   labs(x = "Time (hrs)", y = "DOC (mg)", title = "Saline", tag = "(b)")+
   annotate("text",x = 12, y = yl, label = stl, color = "red3") +
@@ -160,10 +160,10 @@ base <- ggplot() +
   xlim(0,24.05)
 
 comp1 <- base + geom_function(fun = WLt, color = "red3", linetype = "dashed", size = 1.2) +
-  geom_point(data = lfr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = lfr, aes(time, DOC), shape = 21, color = "black", fill = "white") +
   geom_point(data = lfk, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
   geom_function(fun = WHt, color = "salmon", linetype = "dashed", size = 1.2) +
-  geom_point(data = hfr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = hfr, aes(time, DOC), shape = 21, color = "black", fill = "white") +
   geom_point(data = hfk, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
   theme_minimal() +
   labs(x = "Time (hrs)", y = "DOC (mg)", title = "Fresh", tag = "(a)")+
@@ -204,10 +204,10 @@ base <- ggplot() +
   xlim(0,24.05)
 
 comp2 <- base + geom_function(fun = WLt, color = "red3", linetype = "dashed", size = 1.2) +
-  geom_point(data = lsr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = lsr, aes(time, DOC), shape = 21, color = "black", fill = "white") +
   geom_point(data = lsk, aes(time, DOC), shape = 21, color = "black", fill = "red3") +
   geom_function(fun = WHt, color = "salmon", linetype = "dashed", size = 1.2) +
-  geom_point(data = hsr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = hsr, aes(time, DOC), shape = 21, color = "black", fill = "white") +
   geom_point(data = hsk, aes(time, DOC), shape = 21, color = "black", fill = "salmon") +
   theme_minimal() +
   labs(x = "Time (hrs)", y = "DOC (mg)", title = "Saline", tag = "(b)")+
