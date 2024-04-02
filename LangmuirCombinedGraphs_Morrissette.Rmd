@@ -58,10 +58,10 @@ base <- ggplot() +
   xlim(0,24)
 
 sat1 <- base + geom_line(aes(t,jbfmod[1:241]), color = "palegreen4", size = 1.2) +
-  geom_point(data = lfr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = lfr, aes(time, DOC), shape = 21, color = "black", fill = "white") +
   geom_point(data = lfk, aes(time, DOC), shape = 21, color = "black", fill = "palegreen4") +
   geom_line(aes(t,jbfmod[242:482]), color = "palegreen2", size = 1.2) +  
-  geom_point(data = hfr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = hfr, aes(time, DOC), shape = 21, color = "black", fill = "white") +
   geom_point(data = hfk, aes(time, DOC), shape = 21, color = "black", fill = "palegreen2") +
   theme_minimal() +
   labs(x = "Time (hrs)", y = "DOC (mg)", title = "Fresh", tag = "(a)")+
@@ -93,10 +93,10 @@ base <- ggplot() +
   xlim(0,24.05)
 
 sat2 <- base + geom_line(aes(t,jbsmod[1:241]), color = "palegreen4", size = 1.2) +
-  geom_point(data = lsr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = lsr, aes(time, DOC), shape = 21, color = "black", fill = "white") +
   geom_point(data = lsk, aes(time, DOC), shape = 21, color = "black", fill = "palegreen4") +
   geom_line(aes(t,jbsmod[242:482]), color = "palegreen2", size = 1.2) +
-  geom_point(data = hsr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = hsr, aes(time, DOC), shape = 21, color = "black", fill = "white") +
   geom_point(data = hsk, aes(time, DOC), shape = 21, color = "black", fill = "palegreen2") +
   theme_minimal() +
   labs(x = "Time (hrs)", y = "DOC (mg)", title = "Saline", tag = "(b)")+
@@ -143,10 +143,10 @@ base <- ggplot() +
   xlim(0,24.05)
 
 sat1 <- base + geom_line(aes(t,tafmod[1:241]), color = "palegreen4", size = 1.2) +
-  geom_point(data = lfr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = lfr, aes(time, DOC), shape = 21, color = "black", fill = "white") +
   geom_point(data = lfk, aes(time, DOC), shape = 21, color = "black", fill = "palegreen4") +
   geom_line(aes(t,tafmod[242:482]), color = "palegreen2", size = 1.2) +
-  geom_point(data = hfr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = hfr, aes(time, DOC), shape = 21, color = "black", fill = "white") +
   geom_point(data = hfk, aes(time, DOC), shape = 21, color = "black", fill = "palegreen2") +
   theme_minimal() +
   labs(x = "Time (hrs)", y = "DOC (mg)", title = "Fresh", tag = "(a)")+
@@ -178,10 +178,10 @@ base <- ggplot() +
   xlim(0,24.05)
 
 sat2 <- base + geom_line(aes(t,tasmod[1:241]), color = "palegreen4", size = 1.2) +
-  geom_point(data = lsr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = lsr, aes(time, DOC), shape = 21, color = "black", fill = "white") +
   geom_point(data = lsk, aes(time, DOC), shape = 21, color = "black", fill = "palegreen4") +
   geom_line(aes(t,tasmod[242:482]), color = "palegreen2", size = 1.2) +
-  geom_point(data = hsr, aes(time, DOC), shape = 21, color = "black", fill = "gray") +
+  geom_point(data = hsr, aes(time, DOC), shape = 21, color = "black", fill = "white") +
   geom_point(data = hsk, aes(time, DOC), shape = 21, color = "black", fill = "palegreen2") +
   theme_minimal() +
   labs(x = "Time (hrs)", y = "DOC (mg)", title = "Saline", tag = "(b)")+
@@ -621,4 +621,11 @@ ggsave(filename = "PMsat_new.png", width = 7, height = 7, dpi = 300, units = "in
 ggsave(filename = "PMsat_new.tiff", width = 7, height = 7, dpi = 300, units = "in", device='tiff')
 
 plot(satPM)
+```
+
+### Clean Up
+```{r}
+rm(list = ls())  # Clean up
+#ctrl+l clears the console
+
 ```
